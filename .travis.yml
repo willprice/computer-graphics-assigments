@@ -1,0 +1,38 @@
+language: cpp
+sudo: false
+
+os:
+  - linux
+
+addons:
+  apt:
+    packages:
+      - graphviz
+      - libglm-dev
+      - libsdl-dev
+
+install:
+  - DEPS_DIR="${TRAVIS_BUILD_DIR}/deps"
+  - mkdir -p "${DEPS_DIR}" && cd "${DEPS_DIR}"
+  - CMAKE_URL="https://cmake.org/files/v2.8/cmake-2.8.12.2-Linux-i386.tar.gz"
+  - |
+    if [ ! -d cmake ]; then
+      mkdir cmake && \
+      travis_retry wget --no-check-certificate --quiet 0 - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake
+      export PATH="${DEPS_DIR}/cmake/bin:${PATH}"
+    fi
+  - cd "${TRAVIS_BUILD_DIR}"
+script:
+  - cmake --version
+  - mkdir build install
+  - cd build
+  - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${PWD}../install ..
+  - make -j all
+  - make install
+
+notifications:
+  email: true
+
+cache:
+  directories:
+    - deps
