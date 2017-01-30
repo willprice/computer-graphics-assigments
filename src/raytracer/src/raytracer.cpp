@@ -75,12 +75,41 @@ void Update()
 
   for (size_t i = 0; i < stars.size(); i++) {
     float *z = &stars[i].z;
-    if (*z > 0) {
-      *z += star_velocity*dt;
-    } else {
+    *z += star_velocity*dt;
+    if (*z <= 0) {
       *z = 1;
     }
   }
+
+  Uint8* keystate = SDL_GetKeyState( 0 );
+  if( keystate[SDLK_UP] )
+  {
+    camera_centre.y -= 0.01;
+  }
+  if( keystate[SDLK_DOWN] )
+  {
+    camera_centre.y += 0.01;
+  }
+  if( keystate[SDLK_LEFT] )
+  {
+    camera_centre.x -= 0.01;
+  }
+  if( keystate[SDLK_RIGHT] )
+  {
+    camera_centre.x += 0.01;
+  }
+  if( keystate[SDLK_w] )
+  {
+    camera_centre.z += 0.0001;
+  }
+  if( keystate[SDLK_s] )
+  {
+    camera_centre.z -= 0.0001;
+  }
+
+  world_to_camera[3][0] = -camera_centre.x;
+  world_to_camera[3][1] = -camera_centre.y;
+  world_to_camera[3][2] = -camera_centre.z;
 }
 
 void Draw()
@@ -95,7 +124,7 @@ void Draw()
   for (size_t i = 0; i < stars.size(); i++) {
     float z = stars[i].z;
     // Star colour is proportional to the inverse square of distance (standard photon equation)
-    vec3 star_colour = 0.2f * vec3(1, 1, 1) / (z * z);
+    vec3 star_colour(1, 1, 1); // 0.2f * vec3(1, 1, 1) / (z * z);
     vec4 &world_star = stars[i];
     vec4 camera_star = world_to_camera*world_star;
     vec2 projection = project(screen, camera_star, focal_length);

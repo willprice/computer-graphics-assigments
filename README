@@ -29,7 +29,7 @@ tracer, hit Ctrl-C to exit.
 The basic ray tracer is built with
 
 * GLM 0.9.8
-* SDL 1.3
+* SDL 1.X (tested with both 1.2 and 1.3)
 * CMake v2.8
 
 
