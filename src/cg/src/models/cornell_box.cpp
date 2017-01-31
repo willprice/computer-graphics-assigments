@@ -4,7 +4,6 @@
 namespace cg {
 void LoadTestModel(std::vector<Triangle> &triangles) {
   using glm::vec3;
-  using glm::vec4;
 
   // Defines colors:
   vec3 red(0.75f, 0.15f, 0.15f);
@@ -23,15 +22,15 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
 
   float L = 555; // Length of Cornell Box side.
 
-  vec4 A(L, 0, 0, 1);
-  vec4 B(0, 0, 0, 1);
-  vec4 C(L, 0, L, 1);
-  vec4 D(0, 0, L, 1);
+  vec3 A(L, 0, 0);
+  vec3 B(0, 0, 0);
+  vec3 C(L, 0, L);
+  vec3 D(0, 0, L);
 
-  vec4 E(L, L, 0, 1);
-  vec4 F(0, L, 0, 1);
-  vec4 G(L, L, L, 1);
-  vec4 H(0, L, L, 1);
+  vec3 E(L, L, 0);
+  vec3 F(0, L, 0);
+  vec3 G(L, L, L);
+  vec3 H(0, L, L);
 
   // Floor:
   triangles.push_back(Triangle(C, B, A, green));
@@ -56,15 +55,15 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
   // ---------------------------------------------------------------------------
   // Short block
 
-  A = vec4(290, 0, 114);
-  B = vec4(130, 0, 65);
-  C = vec4(240, 0, 272);
-  D = vec4(82, 0, 225);
+  A = vec3(290, 0, 114);
+  B = vec3(130, 0, 65);
+  C = vec3(240, 0, 272);
+  D = vec3(82, 0, 225);
 
-  E = vec4(290, 165, 114);
-  F = vec4(130, 165, 65);
-  G = vec4(240, 165, 272);
-  H = vec4(82, 165, 225);
+  E = vec3(290, 165, 114);
+  F = vec3(130, 165, 65);
+  G = vec3(240, 165, 272);
+  H = vec3(82, 165, 225);
 
   // Front
   triangles.push_back(Triangle(E, B, A, red));
