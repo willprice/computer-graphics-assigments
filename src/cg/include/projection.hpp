@@ -5,7 +5,7 @@
 #include <SDL_video.h>
 
 namespace cg {
-  glm::vec2 project(SDL_Surface *surface, glm::vec3 point, float focal_length);
+  glm::vec2 project(SDL_Surface *surface, glm::vec4 point, float focal_length);
 };
 
 #endif
