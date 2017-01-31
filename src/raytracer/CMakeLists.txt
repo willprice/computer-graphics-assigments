@@ -3,7 +3,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
 
 
-project(raytracer CXX)
+project(raytracer CXX C)
 set(CMAKE_CXX_STANDARD 11)
 
 add_subdirectory(src)
