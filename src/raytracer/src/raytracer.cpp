@@ -7,6 +7,8 @@
 #include "projection.hpp"
 #include "SDLauxiliary.hpp"
 #include "models/cornell_box.hpp"
+#include "triangle.hpp"
+#include "intersection.hpp"
 
 using namespace std;
 using namespace cg;
@@ -25,6 +27,7 @@ const float star_velocity = -0.0001;
 SDL_Surface* screen;
 int t;
 vector<vec4> stars(1000);
+vector<Triangle> triangles;
 
 vec4 camera_centre(0, 0, 0, 1);
 mat4 world_to_camera = {
@@ -55,6 +58,8 @@ int main( int argc, char* argv[] )
     stars[i].z = randomProbability();
     stars[i][3] = 1;
   }
+
+  LoadTestModel(triangles);
 
   while( NoQuitMessageSDL() )
   {
