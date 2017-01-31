@@ -14,6 +14,10 @@ namespace cg {
 
       Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color);
       void ComputeNormal();
+
+      glm::vec3 e1();
+      glm::vec3 e2();
+      
   };
 };
 

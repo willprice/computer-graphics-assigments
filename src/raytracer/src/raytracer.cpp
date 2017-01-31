@@ -23,7 +23,12 @@ using glm::mat4;
 
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
+const float WORLD_WIDTH = 2;
+const float WORLD_HEIGHT = 2;
+const float WORLD_DEPTH = 2;
 const float star_velocity = -0.0001;
+const float FOCAL_LENGTH = 10;
+
 SDL_Surface* screen;
 int t;
 vector<vec4> stars(1000);
@@ -36,6 +41,8 @@ mat4 world_to_camera = {
         vec4(0, 0, 1, 0),
         vec4(-camera_centre.x, -camera_centre.y, -camera_centre.z, 1)
 };
+
+
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
@@ -77,6 +84,33 @@ void Update()
   float dt = float(t2-t);
   t = t2;
   cout << "Render time: " << dt << " ms." << endl;
+
+  vec3 topLeft = vec3((-WORLD_WIDTH / 2) + (WORLD_WIDTH / (2 * SCREEN_WIDTH)),
+                      (-WORLD_HEIGHT / 2) + (WORLD_HEIGHT / (2 * SCREEN_HEIGHT)),
+                      FOCAL_LENGTH);
+
+  vec3 bottomRight = vec3((WORLD_WIDTH / 2) - (WORLD_WIDTH / (2 * SCREEN_WIDTH)),
+                      (WORLD_HEIGHT / 2) - (WORLD_HEIGHT / (2 * SCREEN_HEIGHT)),
+                      FOCAL_LENGTH);
+
+  vec3 bottomLeft = vec3(topLeft.x, bottomRight.y, FOCAL_LENGTH);
+  vec3 topRight = vec3(bottomRight.x, topLeft.y, FOCAL_LENGTH);
+  vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
+  interpolate(topLeft.y, bottomLeft.y, screen_pixel_centres_y);
+  vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
+  interpolate(topLeft.x, topRight.x, screen_pixel_centres_x);
+
+
+  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
+    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
+      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y]
+        , FOCAL_LENGTH);
+      for (Triangle t : triangles) {
+
+      }
+    }
+  }
+
 
   for (size_t i = 0; i < stars.size(); i++) {
     float *z = &stars[i].z;
@@ -125,14 +159,13 @@ void Draw()
     SDL_LockSurface(screen);
 
 
-  float focal_length = 10;
   for (size_t i = 0; i < stars.size(); i++) {
     float z = stars[i].z;
     // Star colour is proportional to the inverse square of distance (standard photon equation)
     vec3 star_colour(1, 1, 1); // 0.2f * vec3(1, 1, 1) / (z * z);
     vec4 &world_star = stars[i];
     vec4 camera_star = world_to_camera*world_star;
-    vec2 projection = project(screen, camera_star, focal_length);
+    vec2 projection = project(screen, camera_star, FOCAL_LENGTH);
     PutPixelSDL(screen, projection.x, projection.y, star_colour);
   }
 
@@ -141,5 +174,3 @@ void Draw()
 
   SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
-
-
