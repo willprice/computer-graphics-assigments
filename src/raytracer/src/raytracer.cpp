@@ -83,11 +83,9 @@ bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& tr
     Triangle triangle = triangles[i];
     mat3 A(-direction, triangle.e1(), triangle.e2());
     vec3 b = start - triangle.v0;
-    /*
     if (glm::determinant(A) == 0) {
       continue;
     }
-    */
     vec3 intersection_point = glm::inverse(A)*b;
     float u = intersection_point.y;
     float v = intersection_point.z;
