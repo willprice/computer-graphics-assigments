@@ -121,17 +121,6 @@ void Update()
 
 
 
-  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
-    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
-      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y]
-        , FOCAL_LENGTH);
-      Intersection closestIntersection;
-      if (closest_intersection(camera_centre, pixel_centre, triangles, closestIntersection)) {
-        rayIntersections.push_back(closestIntersection);
-      }
-    }
-  }
-
   Uint8* keystate = SDL_GetKeyState( 0 );
   if( keystate[SDLK_UP] )
   {
@@ -169,10 +158,17 @@ void Draw()
   if (SDL_MUSTLOCK(screen))
     SDL_UnlockSurface(screen);
 
-  for (Intersection intersection : rayIntersections) {
-    Triangle triangle = triangles[intersection.triangleIndex];
-    vec2 point = project(screen, intersection.position, FOCAL_LENGTH);
-    PutPixelSDL(screen, point.x, point.y, triangle.color);
+
+  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
+    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
+      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y]
+              , FOCAL_LENGTH);
+      Intersection closestIntersection;
+      if (closest_intersection(camera_centre, pixel_centre, triangles, closestIntersection)) {
+        Triangle triangle = triangles[closestIntersection.triangleIndex];
+        PutPixelSDL(screen, x, y, triangle.color);
+      }
+    }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
