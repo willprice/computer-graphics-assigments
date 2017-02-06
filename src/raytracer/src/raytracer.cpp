@@ -25,7 +25,7 @@ const int SCREEN_HEIGHT = 500;
 const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
-const float FOCAL_LENGTH = 1;
+const float FOCAL_LENGTH = 2;
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
@@ -35,7 +35,7 @@ SDL_Surface* screen;
 int t;
 vector<Triangle> triangles;
 
-vec3 camera_centre(0, 0, -2);
+vec3 camera_centre(0, 0, -3);
 
 
 /* ----------------------------------------------------------------------------*/
