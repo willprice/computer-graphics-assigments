@@ -1,6 +1,6 @@
-
 #ifndef RAYTRACER_PIXELCOORDINATE_HPP
 #define RAYTRACER_PIXELCOORDINATE_HPP
+#include "glm/glm.hpp"
 
 
 class PixelCoordinate {
