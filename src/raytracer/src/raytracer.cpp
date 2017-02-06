@@ -20,15 +20,15 @@ using glm::mat3;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
 
-const int SCREEN_WIDTH = 500;
-const int SCREEN_HEIGHT = 500;
+const int SCREEN_WIDTH = 200;
+const int SCREEN_HEIGHT = 200;
 const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
 const float FOCAL_LENGTH = 2;
 
-static const double TRANSLATION_STEP_SIZE = 0.1;
-static const double ROTATION_STEP_SIZE = 0.05;
+static const float TRANSLATION_STEP_SIZE = 0.1;
+static const float ROTATION_STEP_SIZE = 0.05;
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
@@ -40,7 +40,12 @@ vector<Triangle> triangles;
 
 vec3 camera_centre(0, 0, -3);
 mat3 camera_rotation;
-float yaw = 0;
+mat3 camera_rotation_x;
+mat3 camera_rotation_y;
+mat3 camera_rotation_z;
+float yaw = -.5;
+float pitch = .5;
+float roll = 0;
 
 
 
@@ -62,6 +67,7 @@ void updateCameraParameters();
 void updateCameraPosition(const Uint8 *keystate);
 
 void updateCameraRotation(const Uint8 *keystate);
+
 bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& triangles, Intersection& closestIntersection);
 
 float computeRenderTime();
@@ -75,6 +81,8 @@ int main(int argc, char* argv[] )
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
+
+  SDL_WM_GrabInput(SDL_GRAB_ON);
 
   while( NoQuitMessageSDL() )
   {
@@ -183,45 +191,64 @@ void updateCameraParameters() {
 }
 
 void updateCameraRotation(const Uint8 *keystate) {
-  if( keystate[SDLK_RIGHT] )
-  {
-    yaw += ROTATION_STEP_SIZE;
-  }
-  if( keystate[SDLK_LEFT] )
-  {
-    yaw -= ROTATION_STEP_SIZE;
-  }
+  int x;
+  int y;
+  SDL_GetRelativeMouseState(&x, &y);
+  pitch += -y/(SCREEN_HEIGHT * 1.0);
+  yaw += x/(SCREEN_WIDTH*1.0);
 }
 
 void updateCameraPosition(const Uint8 *keystate) {
-  if( keystate[SDLK_w] )
+  vec3 right(camera_rotation[0][0],
+             camera_rotation[0][1],
+             camera_rotation[0][2]
+  );
+  vec3 down(camera_rotation[1][0],
+             camera_rotation[1][1],
+             camera_rotation[1][2]
+  );
+  vec3 forward(camera_rotation[2][0],
+            camera_rotation[2][1],
+            camera_rotation[2][2]
+  );
+  if( keystate[SDLK_q] )
   {
-    camera_centre.y -= TRANSLATION_STEP_SIZE;
-  }
-  if( keystate[SDLK_s] )
-  {
-    camera_centre.y += TRANSLATION_STEP_SIZE;
-  }
-  if( keystate[SDLK_a] )
-  {
-    camera_centre.x -= TRANSLATION_STEP_SIZE;
-  }
-  if( keystate[SDLK_d] )
-  {
-    camera_centre.x += TRANSLATION_STEP_SIZE;
+    camera_centre += down*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_e] )
   {
-    camera_centre.z += TRANSLATION_STEP_SIZE;
+    camera_centre -= down*TRANSLATION_STEP_SIZE;
   }
-  if( keystate[SDLK_q] )
+  if( keystate[SDLK_a] )
   {
-    camera_centre.z -= TRANSLATION_STEP_SIZE;
+    camera_centre -= right*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_d] )
+  {
+    camera_centre += right*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_w] )
+  {
+    camera_centre += forward*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_s] )
+  {
+    camera_centre -= forward*TRANSLATION_STEP_SIZE;
   }
 }
 
 void updateCameraRotation() {
-  camera_rotation[0] = vec3(cos(yaw), 0, -sin(yaw));
-  camera_rotation[1] = vec3(0, 1, 0);
-  camera_rotation[2] = vec3(sin(yaw), 0, cos(yaw));
+  camera_rotation_x[0] = vec3(1, 0, 0);
+  camera_rotation_x[1] = vec3(0, cos(pitch), sin(pitch));
+  camera_rotation_x[2] = vec3(0, -sin(pitch), cos(pitch));
+
+  camera_rotation_y[0] = vec3(cos(yaw), 0, -sin(yaw));
+  camera_rotation_y[1] = vec3(0, 1, 0);
+  camera_rotation_y[2] = vec3(sin(yaw), 0, cos(yaw));
+
+  camera_rotation_z[0] = vec3(cos(roll), sin(roll), 0);
+  camera_rotation_z[1] = vec3(-sin(roll), cos(roll), 0);
+  camera_rotation_z[2] = vec3(0, 0, 1);
+
+  camera_rotation = camera_rotation_x*camera_rotation_y*camera_rotation_z;
 }
