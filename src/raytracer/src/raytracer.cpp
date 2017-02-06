@@ -27,6 +27,9 @@ const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
 const float FOCAL_LENGTH = 2;
 
+static const double TRANSLATION_STEP_SIZE = 0.1;
+static const double ROTATION_STEP_SIZE = 0.05;
+
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
 vector<Intersection> rayIntersections;
@@ -52,13 +55,72 @@ float randomProbability() {
 void Update();
 void Draw();
 
-int main( int argc, char* argv[] )
+void updateCameraRotation();
+
+void updateCameraParameters();
+
+void updateCameraPosition(const Uint8 *keystate);
+
+void updateCameraRotation(const Uint8 *keystate);
+bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& triangles, Intersection& closestIntersection);
+
+float computeRenderTime();
+
+void calculateScreenPixelCentres();
+
+int main(int argc, char* argv[] )
 {
   screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
   t = SDL_GetTicks();	// Set start value for timer.
 
   LoadTestModel(triangles);
+  calculateScreenPixelCentres();
 
+  while( NoQuitMessageSDL() )
+  {
+    Update();
+    Draw();
+  }
+
+  return 0;
+}
+
+void Update()
+{
+  cout << "Render time: " << computeRenderTime() << " ms." << endl;
+  updateCameraParameters();
+}
+
+
+void Draw()
+{
+  SDL_FillRect(screen, 0, 0);
+
+  if (SDL_MUSTLOCK(screen))
+    SDL_LockSurface(screen);
+
+  if (SDL_MUSTLOCK(screen))
+    SDL_UnlockSurface(screen);
+
+
+  updateCameraRotation();
+
+  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
+    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
+      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y]
+              , FOCAL_LENGTH);
+      Intersection closestIntersection;
+      if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
+        Triangle triangle = triangles[closestIntersection.triangleIndex];
+        PutPixelSDL(screen, x, y, triangle.color);
+      }
+    }
+  }
+  SDL_UpdateRect(screen, 0, 0, 0, 0);
+}
+
+
+void calculateScreenPixelCentres() {
   vec3 topLeft = vec3((-WORLD_WIDTH / 2) + (WORLD_WIDTH / (2 * SCREEN_WIDTH)),
                       (-WORLD_HEIGHT / 2) + (WORLD_HEIGHT / (2 * SCREEN_HEIGHT)),
                       FOCAL_LENGTH);
@@ -71,15 +133,8 @@ int main( int argc, char* argv[] )
   vec3 topRight = vec3(bottomRight.x, topLeft.y, FOCAL_LENGTH);
   interpolate(topLeft.y, bottomLeft.y, screen_pixel_centres_y);
   interpolate(topLeft.x, topRight.x, screen_pixel_centres_x);
-
-  while( NoQuitMessageSDL() )
-  {
-    Update();
-    Draw();
-  }
-
-  return 0;
 }
+
 bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& triangles, Intersection& closestIntersection) {
   vector<Intersection> validIntersection;
   for (int i = 0; i < triangles.size(); i++) {
@@ -114,77 +169,59 @@ bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& tr
   }
   return true;
 }
-void Update()
-{
-  // Compute frame time:
+float computeRenderTime() {
   int t2 = SDL_GetTicks();
   float dt = float(t2-t);
   t = t2;
-  cout << "Render time: " << dt << " ms." << endl;
+  return dt;
+}
 
+void updateCameraParameters() {
+  Uint8* keystate = SDL_GetKeyState(0 );
+  updateCameraPosition(keystate);
+  updateCameraRotation(keystate);
+}
 
-
-
-  Uint8* keystate = SDL_GetKeyState( 0 );
-  if( keystate[SDLK_w] )
-  {
-    camera_centre.y -= 0.1;
-  }
-  if( keystate[SDLK_s] )
-  {
-    camera_centre.y += 0.1;
-  }
-  if( keystate[SDLK_a] )
-  {
-    camera_centre.x -= 0.1;
-  }
-  if( keystate[SDLK_d] )
-  {
-    camera_centre.x += 0.1;
-  }
-  if( keystate[SDLK_e] )
-  {
-    camera_centre.z += 0.1;
-  }
-  if( keystate[SDLK_q] )
-  {
-    camera_centre.z -= 0.1;
-  }
+void updateCameraRotation(const Uint8 *keystate) {
   if( keystate[SDLK_RIGHT] )
   {
-    yaw += 0.1;
+    yaw += ROTATION_STEP_SIZE;
   }
   if( keystate[SDLK_LEFT] )
   {
-    yaw -= 0.1;
+    yaw -= ROTATION_STEP_SIZE;
   }
 }
 
-void Draw()
-{
-  SDL_FillRect(screen, 0, 0);
+void updateCameraPosition(const Uint8 *keystate) {
+  if( keystate[SDLK_w] )
+  {
+    camera_centre.y -= TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_s] )
+  {
+    camera_centre.y += TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_a] )
+  {
+    camera_centre.x -= TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_d] )
+  {
+    camera_centre.x += TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_e] )
+  {
+    camera_centre.z += TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_q] )
+  {
+    camera_centre.z -= TRANSLATION_STEP_SIZE;
+  }
+}
 
-  if (SDL_MUSTLOCK(screen))
-    SDL_LockSurface(screen);
-
-  if (SDL_MUSTLOCK(screen))
-    SDL_UnlockSurface(screen);
-
-
+void updateCameraRotation() {
   camera_rotation[0] = vec3(cos(yaw), 0, -sin(yaw));
   camera_rotation[1] = vec3(0, 1, 0);
   camera_rotation[2] = vec3(sin(yaw), 0, cos(yaw));
-
-  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
-    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
-      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y]
-              , FOCAL_LENGTH);
-      Intersection closestIntersection;
-      if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
-        Triangle triangle = triangles[closestIntersection.triangleIndex];
-        PutPixelSDL(screen, x, y, triangle.color);
-      }
-    }
-  }
-  SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
