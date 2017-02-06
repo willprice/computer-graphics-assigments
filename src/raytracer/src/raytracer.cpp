@@ -36,6 +36,9 @@ int t;
 vector<Triangle> triangles;
 
 vec3 camera_centre(0, 0, -3);
+mat3 camera_rotation;
+float yaw = 0;
+
 
 
 /* ----------------------------------------------------------------------------*/
@@ -121,30 +124,39 @@ void Update()
 
 
 
+
   Uint8* keystate = SDL_GetKeyState( 0 );
-  if( keystate[SDLK_UP] )
-  {
-    camera_centre.y -= 0.01;
-  }
-  if( keystate[SDLK_DOWN] )
-  {
-    camera_centre.y += 0.01;
-  }
-  if( keystate[SDLK_LEFT] )
-  {
-    camera_centre.x -= 0.01;
-  }
-  if( keystate[SDLK_RIGHT] )
-  {
-    camera_centre.x += 0.01;
-  }
   if( keystate[SDLK_w] )
   {
-    camera_centre.z += 0.0001;
+    camera_centre.y -= 0.1;
   }
   if( keystate[SDLK_s] )
   {
-    camera_centre.z -= 0.0001;
+    camera_centre.y += 0.1;
+  }
+  if( keystate[SDLK_a] )
+  {
+    camera_centre.x -= 0.1;
+  }
+  if( keystate[SDLK_d] )
+  {
+    camera_centre.x += 0.1;
+  }
+  if( keystate[SDLK_e] )
+  {
+    camera_centre.z += 0.1;
+  }
+  if( keystate[SDLK_q] )
+  {
+    camera_centre.z -= 0.1;
+  }
+  if( keystate[SDLK_RIGHT] )
+  {
+    yaw += 0.1;
+  }
+  if( keystate[SDLK_LEFT] )
+  {
+    yaw -= 0.1;
   }
 }
 
@@ -159,12 +171,16 @@ void Draw()
     SDL_UnlockSurface(screen);
 
 
+  camera_rotation[0] = vec3(cos(yaw), 0, -sin(yaw));
+  camera_rotation[1] = vec3(0, 1, 0);
+  camera_rotation[2] = vec3(sin(yaw), 0, cos(yaw));
+
   for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
     for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
       vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y]
               , FOCAL_LENGTH);
       Intersection closestIntersection;
-      if (closest_intersection(camera_centre, pixel_centre, triangles, closestIntersection)) {
+      if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
         Triangle triangle = triangles[closestIntersection.triangleIndex];
         PutPixelSDL(screen, x, y, triangle.color);
       }
