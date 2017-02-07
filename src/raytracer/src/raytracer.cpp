@@ -20,8 +20,8 @@ using glm::mat3;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
 
-const int SCREEN_WIDTH = 500;
-const int SCREEN_HEIGHT = 500;
+const int SCREEN_WIDTH = 200;
+const int SCREEN_HEIGHT = 200;
 const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
@@ -65,11 +65,13 @@ void Draw();
 
 void updateCameraRotation();
 
-void updateCameraParameters();
+void updateCameraParameters(const Uint8 *keystate);
 
 void updateCameraPosition(const Uint8 *keystate);
 
 void updateCameraRotation(const Uint8 *keystate);
+
+void updateLightPosition(const Uint8 *keystate);
 
 bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& triangles, Intersection& closestIntersection);
 
@@ -101,7 +103,9 @@ int main(int argc, char* argv[] )
 void Update()
 {
   cout << "Render time: " << computeRenderTime() << " ms." << endl;
-  updateCameraParameters();
+  Uint8* keystate = SDL_GetKeyState(0 );
+  updateCameraParameters(keystate);
+  updateLightPosition(keystate);
 }
 
 
@@ -134,11 +138,11 @@ void Draw()
 
 vec3 directLight(const Intersection &intersection) {
   vec3 intersection_to_light_source = - intersection.position + light_position;
+  float distance_to_light_source = glm::length(intersection_to_light_source);
   intersection_to_light_source = glm::normalize(intersection_to_light_source);
   vec3 normal = glm::normalize(triangles[intersection.triangleIndex].normal);
 
   float cosine_light_ray_to_surface_normal = glm::dot(intersection_to_light_source, normal);
-  float distance_to_light_source = glm::length(intersection_to_light_source);
   float source_light_sphere_area = 4 * 3.142 * pow(distance_to_light_source, 2);
   float scalar = max(cosine_light_ray_to_surface_normal, 0.0f) / source_light_sphere_area;
   vec3 illumination = light_color * scalar;
@@ -201,8 +205,7 @@ float computeRenderTime() {
   return dt;
 }
 
-void updateCameraParameters() {
-  Uint8* keystate = SDL_GetKeyState(0 );
+void updateCameraParameters(const Uint8 *keystate) {
   updateCameraPosition(keystate);
   updateCameraRotation(keystate);
 }
@@ -268,4 +271,35 @@ void updateCameraRotation() {
   camera_rotation_z[2] = vec3(0, 0, 1);
 
   camera_rotation = camera_rotation_x*camera_rotation_y*camera_rotation_z;
+}
+
+void updateLightPosition(const Uint8 *keystate) {
+  vec3 forward(0,0,1);
+  vec3 right(1,0,0);
+  vec3 down(0,1,0);
+
+  if( keystate[SDLK_i] )
+  {
+    light_position += forward*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_k] )
+  {
+    light_position -= forward*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_j] )
+  {
+    light_position -= right*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_l] )
+  {
+    light_position += right*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_u] )
+  {
+    light_position -= down*TRANSLATION_STEP_SIZE;
+  }
+  if( keystate[SDLK_o] )
+  {
+    light_position += down*TRANSLATION_STEP_SIZE;
+  }
 }
