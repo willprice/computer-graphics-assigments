@@ -124,9 +124,8 @@ void Draw()
               , FOCAL_LENGTH);
       Intersection closestIntersection;
       if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
-        //Triangle triangle = triangles[closestIntersection.triangleIndex];
         vec3 illumination = directLight(closestIntersection);
-        PutPixelSDL(screen, x, y, illumination); //triangle.color
+        PutPixelSDL(screen, x, y, illumination);
       }
     }
   }
@@ -136,11 +135,11 @@ void Draw()
 vec3 directLight(const Intersection &intersection) {
   vec3 intersection_to_light_source = - intersection.position + light_position;
   intersection_to_light_source = glm::normalize(intersection_to_light_source);
-  vec3 &normal = triangles[intersection.triangleIndex].normal;
+  vec3 normal = glm::normalize(triangles[intersection.triangleIndex].normal);
 
   float cosine_light_ray_to_surface_normal = glm::dot(intersection_to_light_source, normal);
   float distance_to_light_source = glm::length(intersection_to_light_source);
-  double source_light_sphere_area = 4 * 3.142 * distance_to_light_source;
+  float source_light_sphere_area = 4 * 3.142 * pow(distance_to_light_source, 2);
   float scalar = max(cosine_light_ray_to_surface_normal, 0.0f) / source_light_sphere_area;
   vec3 illumination = light_color * scalar;
   return illumination;
