@@ -20,8 +20,8 @@ using glm::mat3;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
 
-const int SCREEN_WIDTH = 200;
-const int SCREEN_HEIGHT = 200;
+const int SCREEN_WIDTH = 500;
+const int SCREEN_HEIGHT = 500;
 const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
@@ -38,15 +38,18 @@ SDL_Surface* screen;
 int t;
 vector<Triangle> triangles;
 
+float yaw = -.5;
+float pitch = .5;
+float roll = 0;
 vec3 camera_centre(0, 0, -3);
+
 mat3 camera_rotation;
 mat3 camera_rotation_x;
 mat3 camera_rotation_y;
 mat3 camera_rotation_z;
-float yaw = -.5;
-float pitch = .5;
-float roll = 0;
 
+vec3 light_position(0, -0.5, -0.7);
+vec3 light_color = 14.f * vec3(1,1,1);
 
 
 /* ----------------------------------------------------------------------------*/
@@ -127,6 +130,17 @@ void Draw()
   SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
 
+vec3 directLight(const Intersection &intersection) {
+  vec3 intersection_to_light_source = - intersection.position + light_position;
+  intersection_to_light_source = glm::normalize(intersection_to_light_source);
+  vec3 &normal = triangles[intersection.triangleIndex].normal;
+
+  float cosine_light_ray_to_surface_normal = glm::dot(intersection_to_light_source, normal);
+  float distance_to_light_source = glm::length(intersection_to_light_source);
+  double source_light_sphere_area = 4 * 3.142 * distance_to_light_source;
+  float scalar = max(cosine_light_ray_to_surface_normal, 0.0f) / source_light_sphere_area;
+  vec3 illumination = light_color * scalar;
+}
 
 void calculateScreenPixelCentres() {
   vec3 topLeft = vec3((-WORLD_WIDTH / 2) + (WORLD_WIDTH / (2 * SCREEN_WIDTH)),
