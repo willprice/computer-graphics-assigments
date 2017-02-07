@@ -77,6 +77,8 @@ float computeRenderTime();
 
 void calculateScreenPixelCentres();
 
+vec3 directLight(const Intersection &intersection);
+
 int main(int argc, char* argv[] )
 {
   screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
@@ -122,8 +124,9 @@ void Draw()
               , FOCAL_LENGTH);
       Intersection closestIntersection;
       if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
-        Triangle triangle = triangles[closestIntersection.triangleIndex];
-        PutPixelSDL(screen, x, y, triangle.color);
+        //Triangle triangle = triangles[closestIntersection.triangleIndex];
+        vec3 illumination = directLight(closestIntersection);
+        PutPixelSDL(screen, x, y, illumination); //triangle.color
       }
     }
   }
@@ -140,6 +143,7 @@ vec3 directLight(const Intersection &intersection) {
   double source_light_sphere_area = 4 * 3.142 * distance_to_light_source;
   float scalar = max(cosine_light_ray_to_surface_normal, 0.0f) / source_light_sphere_area;
   vec3 illumination = light_color * scalar;
+  return illumination;
 }
 
 void calculateScreenPixelCentres() {
