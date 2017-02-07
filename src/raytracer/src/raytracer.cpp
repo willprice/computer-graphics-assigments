@@ -128,9 +128,16 @@ void Draw()
               , FOCAL_LENGTH);
       Intersection closestIntersection;
       if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
-        Triangle triangle = triangles[closestIntersection.triangleIndex];
-        vec3 illumination = directLight(closestIntersection);
-        vec3 reflected_light = triangle.color * illumination;
+        vec3 light_to_previous = - light_position + closestIntersection.position;
+        Intersection i2;
+        closest_intersection(light_position, light_to_previous, triangles, i2);
+        vec3 reflected_light(0, 0, 0);
+        if (i2.triangleIndex == closestIntersection.triangleIndex) {
+        //if (i2.distance >= glm::length(light_to_previous)) {
+          Triangle triangle = triangles[closestIntersection.triangleIndex];
+          vec3 illumination = directLight(closestIntersection);
+          reflected_light = triangle.color * illumination;
+        }
         PutPixelSDL(screen, x, y, reflected_light);
       }
     }
