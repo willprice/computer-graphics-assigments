@@ -128,8 +128,10 @@ void Draw()
               , FOCAL_LENGTH);
       Intersection closestIntersection;
       if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
+        Triangle triangle = triangles[closestIntersection.triangleIndex];
         vec3 illumination = directLight(closestIntersection);
-        PutPixelSDL(screen, x, y, illumination);
+        vec3 reflected_light = triangle.color * illumination;
+        PutPixelSDL(screen, x, y, reflected_light);
       }
     }
   }
