@@ -20,10 +20,10 @@ using glm::mat3;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
 
-#define MOUSE_CONTROLS_ON 1
+#define MOUSE_CONTROLS_ON 0
 
-const int SCREEN_WIDTH = 200;
-const int SCREEN_HEIGHT = 200;
+const int SCREEN_WIDTH = 500;
+const int SCREEN_HEIGHT = 500;
 const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
