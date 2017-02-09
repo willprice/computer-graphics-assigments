@@ -40,7 +40,9 @@ SDL_Surface* screen;
 int t;
 vector<Triangle> triangles;
 
-float yaw = 0;
+// Adding a tiny amount of camera rotation fixes little black spots that appear at the intersection of triangles
+// on the right wall
+float yaw = 0.0001;
 float pitch = 0;
 float roll = 0;
 vec3 camera_centre(0, 0, -3);
