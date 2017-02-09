@@ -51,6 +51,8 @@ mat3 camera_rotation_z;
 vec3 light_position(0, -0.5, -0.7);
 vec3 light_color = 14.f * vec3(1,1,1);
 
+vec3 indirect_light = 0.5f * vec3(1,1,1);
+
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -128,15 +130,16 @@ void Draw()
               , FOCAL_LENGTH);
       Intersection closestIntersection;
       if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
-        //if (is_occluded) then return reflected light
         vec3 reflected_light(0, 0, 0);
         vec3 light_to_previous = - light_position + closestIntersection.position;
         Intersection potential_occlusion;
         closest_intersection(light_position, light_to_previous, triangles, potential_occlusion);
+        Triangle triangle = triangles[closestIntersection.triangleIndex];
         if (potential_occlusion.triangleIndex == closestIntersection.triangleIndex) {
-          Triangle triangle = triangles[closestIntersection.triangleIndex];
-          vec3 illumination = directLight(closestIntersection);
+          vec3 illumination = directLight(closestIntersection) + indirect_light;
           reflected_light = triangle.color * illumination;
+        } else {
+          reflected_light = triangle.color * indirect_light;
         }
         PutPixelSDL(screen, x, y, reflected_light);
       }
