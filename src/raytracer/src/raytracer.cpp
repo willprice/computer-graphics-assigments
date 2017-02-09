@@ -2,7 +2,7 @@
 #include <cmath>
 #include <glm/glm.hpp>
 #include <iostream>
-#include <map>
+#include "omp.h"
 
 #include "interpolation.hpp"
 #include "projection.hpp"
@@ -34,28 +34,28 @@ static const float ROTATION_STEP_SIZE = 0.05;
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
-vector<Intersection> rayIntersections;
+vector<Intersection> RAY_INTERSECTIONS;
 
 SDL_Surface* screen;
-int t;
+int TIME;
 vector<Triangle> triangles;
 
 // Adding a tiny amount of camera rotation fixes little black spots that appear at the intersection of triangles
 // on the right wall
-float yaw = 0.0001;
-float pitch = 0;
-float roll = 0;
-vec3 camera_centre(0, 0, -3);
+float YAW = 0.0001;
+float PITCH = 0;
+float ROLL = 0;
+vec3 CAMERA_CENTRE(0, 0, -3);
 
-mat3 camera_rotation;
-mat3 camera_rotation_x;
-mat3 camera_rotation_y;
-mat3 camera_rotation_z;
+mat3 CAMERA_ROTATION;
+mat3 CAMERA_ROTATION_X;
+mat3 CAMERA_ROTATION_Y;
+mat3 CAMERA_ROTATION_Z;
 
-vec3 light_position(0, -0.5, -0.7);
-vec3 light_color = 14.f * vec3(1,1,1);
+vec3 LIGHT_POSITION(0, -0.5, -0.7);
+vec3 LIGHT_COLOR = 14.f * vec3(1,1,1);
 
-vec3 indirect_light = 0.5f * vec3(1,1,1);
+vec3 INDIRECT_LIGHT = 0.5f * vec3(1,1,1);
 
 
 /* ----------------------------------------------------------------------------*/
@@ -90,7 +90,7 @@ vec3 directLight(const Intersection &intersection);
 int main(int argc, char* argv[] )
 {
   screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
-  t = SDL_GetTicks();	// Set start value for timer.
+  TIME = SDL_GetTicks();	// Set start value for timer.
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
@@ -128,24 +128,27 @@ void Draw()
 
   updateCameraRotation();
 
-  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
-    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
-      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y]
-              , FOCAL_LENGTH);
-      Intersection closestIntersection;
-      if (closest_intersection(camera_centre, camera_rotation*pixel_centre, triangles, closestIntersection)) {
-        vec3 reflected_light(0, 0, 0);
-        vec3 light_to_previous = - light_position + closestIntersection.position;
-        Intersection potential_occlusion;
-        closest_intersection(light_position, light_to_previous, triangles, potential_occlusion);
-        Triangle triangle = triangles[closestIntersection.triangleIndex];
-        if (potential_occlusion.triangleIndex == closestIntersection.triangleIndex) {
-          vec3 illumination = directLight(closestIntersection) + indirect_light;
-          reflected_light = triangle.color * illumination;
-        } else {
-          reflected_light = triangle.color * indirect_light;
+#pragma omp parallel 
+  {
+#pragma omp for
+    for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
+      for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
+        vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y], FOCAL_LENGTH);
+        Intersection closestIntersection;
+        if (closest_intersection(CAMERA_CENTRE, CAMERA_ROTATION * pixel_centre, triangles, closestIntersection)) {
+          vec3 reflected_light(0, 0, 0);
+          vec3 light_to_previous = -LIGHT_POSITION + closestIntersection.position;
+          Intersection potential_occlusion;
+          closest_intersection(LIGHT_POSITION, light_to_previous, triangles, potential_occlusion);
+          Triangle triangle = triangles[closestIntersection.triangleIndex];
+          if (potential_occlusion.triangleIndex == closestIntersection.triangleIndex) {
+            vec3 illumination = directLight(closestIntersection) + INDIRECT_LIGHT;
+            reflected_light = triangle.color * illumination;
+          } else {
+            reflected_light = triangle.color * INDIRECT_LIGHT;
+          }
+          PutPixelSDL(screen, x, y, reflected_light);
         }
-        PutPixelSDL(screen, x, y, reflected_light);
       }
     }
   }
@@ -153,7 +156,7 @@ void Draw()
 }
 
 vec3 directLight(const Intersection &intersection) {
-  vec3 intersection_to_light_source = - intersection.position + light_position;
+  vec3 intersection_to_light_source = - intersection.position + LIGHT_POSITION;
   float distance_to_light_source = glm::length(intersection_to_light_source);
   intersection_to_light_source = glm::normalize(intersection_to_light_source);
   vec3 normal = glm::normalize(triangles[intersection.triangleIndex].normal);
@@ -161,7 +164,7 @@ vec3 directLight(const Intersection &intersection) {
   float cosine_light_ray_to_surface_normal = glm::dot(intersection_to_light_source, normal);
   float source_light_sphere_area = 4 * 3.142 * pow(distance_to_light_source, 2);
   float scalar = max(cosine_light_ray_to_surface_normal, 0.0f) / source_light_sphere_area;
-  vec3 illumination = light_color * scalar;
+  vec3 illumination = LIGHT_COLOR * scalar;
   return illumination;
 }
 
@@ -216,8 +219,8 @@ bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& tr
 }
 float computeRenderTime() {
   int t2 = SDL_GetTicks();
-  float dt = float(t2-t);
-  t = t2;
+  float dt = float(t2-TIME);
+  TIME = t2;
   return dt;
 }
 
@@ -232,63 +235,63 @@ void updateCameraRotation(const Uint8 *keystate) {
   int x;
   int y;
   SDL_GetRelativeMouseState(&x, &y);
-  pitch += -y/(SCREEN_HEIGHT * 1.0);
-  yaw += x/(SCREEN_WIDTH*1.0);
+  PITCH += -y/(SCREEN_HEIGHT * 1.0);
+  YAW += x/(SCREEN_WIDTH*1.0);
 }
 
 void updateCameraPosition(const Uint8 *keystate) {
-  vec3 right(camera_rotation[0][0],
-             camera_rotation[0][1],
-             camera_rotation[0][2]
+  vec3 right(CAMERA_ROTATION[0][0],
+             CAMERA_ROTATION[0][1],
+             CAMERA_ROTATION[0][2]
   );
-  vec3 down(camera_rotation[1][0],
-             camera_rotation[1][1],
-             camera_rotation[1][2]
+  vec3 down(CAMERA_ROTATION[1][0],
+             CAMERA_ROTATION[1][1],
+             CAMERA_ROTATION[1][2]
   );
-  vec3 forward(camera_rotation[2][0],
-            camera_rotation[2][1],
-            camera_rotation[2][2]
+  vec3 forward(CAMERA_ROTATION[2][0],
+            CAMERA_ROTATION[2][1],
+            CAMERA_ROTATION[2][2]
   );
   if( keystate[SDLK_q] )
   {
-    camera_centre += down*TRANSLATION_STEP_SIZE;
+    CAMERA_CENTRE += down*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_e] )
   {
-    camera_centre -= down*TRANSLATION_STEP_SIZE;
+    CAMERA_CENTRE -= down*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_a] )
   {
-    camera_centre -= right*TRANSLATION_STEP_SIZE;
+    CAMERA_CENTRE -= right*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_d] )
   {
-    camera_centre += right*TRANSLATION_STEP_SIZE;
+    CAMERA_CENTRE += right*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_w] )
   {
-    camera_centre += forward*TRANSLATION_STEP_SIZE;
+    CAMERA_CENTRE += forward*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_s] )
   {
-    camera_centre -= forward*TRANSLATION_STEP_SIZE;
+    CAMERA_CENTRE -= forward*TRANSLATION_STEP_SIZE;
   }
 }
 
 void updateCameraRotation() {
-  camera_rotation_x[0] = vec3(1, 0, 0);
-  camera_rotation_x[1] = vec3(0, cos(pitch), sin(pitch));
-  camera_rotation_x[2] = vec3(0, -sin(pitch), cos(pitch));
+  CAMERA_ROTATION_X[0] = vec3(1, 0, 0);
+  CAMERA_ROTATION_X[1] = vec3(0, cos(PITCH), sin(PITCH));
+  CAMERA_ROTATION_X[2] = vec3(0, -sin(PITCH), cos(PITCH));
 
-  camera_rotation_y[0] = vec3(cos(yaw), 0, -sin(yaw));
-  camera_rotation_y[1] = vec3(0, 1, 0);
-  camera_rotation_y[2] = vec3(sin(yaw), 0, cos(yaw));
+  CAMERA_ROTATION_Y[0] = vec3(cos(YAW), 0, -sin(YAW));
+  CAMERA_ROTATION_Y[1] = vec3(0, 1, 0);
+  CAMERA_ROTATION_Y[2] = vec3(sin(YAW), 0, cos(YAW));
 
-  camera_rotation_z[0] = vec3(cos(roll), sin(roll), 0);
-  camera_rotation_z[1] = vec3(-sin(roll), cos(roll), 0);
-  camera_rotation_z[2] = vec3(0, 0, 1);
+  CAMERA_ROTATION_Z[0] = vec3(cos(ROLL), sin(ROLL), 0);
+  CAMERA_ROTATION_Z[1] = vec3(-sin(ROLL), cos(ROLL), 0);
+  CAMERA_ROTATION_Z[2] = vec3(0, 0, 1);
 
-  camera_rotation = camera_rotation_x*camera_rotation_y*camera_rotation_z;
+  CAMERA_ROTATION = CAMERA_ROTATION_X*CAMERA_ROTATION_Y*CAMERA_ROTATION_Z;
 }
 
 void updateLightPosition(const Uint8 *keystate) {
@@ -298,26 +301,26 @@ void updateLightPosition(const Uint8 *keystate) {
 
   if( keystate[SDLK_i] )
   {
-    light_position += forward*TRANSLATION_STEP_SIZE;
+    LIGHT_POSITION += forward*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_k] )
   {
-    light_position -= forward*TRANSLATION_STEP_SIZE;
+    LIGHT_POSITION -= forward*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_j] )
   {
-    light_position -= right*TRANSLATION_STEP_SIZE;
+    LIGHT_POSITION -= right*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_l] )
   {
-    light_position += right*TRANSLATION_STEP_SIZE;
+    LIGHT_POSITION += right*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_u] )
   {
-    light_position -= down*TRANSLATION_STEP_SIZE;
+    LIGHT_POSITION -= down*TRANSLATION_STEP_SIZE;
   }
   if( keystate[SDLK_o] )
   {
-    light_position += down*TRANSLATION_STEP_SIZE;
+    LIGHT_POSITION += down*TRANSLATION_STEP_SIZE;
   }
 }
