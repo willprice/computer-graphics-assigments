@@ -20,6 +20,8 @@ using glm::mat3;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
 
+#define MOUSE_CONTROLS_ON 1
+
 const int SCREEN_WIDTH = 200;
 const int SCREEN_HEIGHT = 200;
 const float WORLD_WIDTH = 2;
@@ -38,8 +40,8 @@ SDL_Surface* screen;
 int t;
 vector<Triangle> triangles;
 
-float yaw = -.5;
-float pitch = .5;
+float yaw = 0;
+float pitch = 0;
 float roll = 0;
 vec3 camera_centre(0, 0, -3);
 
@@ -219,7 +221,9 @@ float computeRenderTime() {
 
 void updateCameraParameters(const Uint8 *keystate) {
   updateCameraPosition(keystate);
-  updateCameraRotation(keystate);
+  if (MOUSE_CONTROLS_ON) {
+    updateCameraRotation(keystate);
+  }
 }
 
 void updateCameraRotation(const Uint8 *keystate) {
