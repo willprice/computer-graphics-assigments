@@ -3,7 +3,9 @@
 #include <iostream>
 
 using namespace std;
-using namespace glm;
+using glm::vec3;
+using glm::vec2;
+using glm::ivec2;
 
 namespace cg {
   void interpolate(float min, float max, vector<float> &result) {
@@ -35,6 +37,16 @@ namespace cg {
       result[i].z = min.z + z_step_size * i;
     };
     return;
+  }
+
+  void interpolate( ivec2 a, ivec2 b, vector<ivec2>& result ) {
+    int N = result.size();
+    vec2 step = vec2(b-a) / float(max(N-1,1));
+    vec2 current( a );
+    for( int i=0; i<N; ++i ) {
+      result[i] = current;
+      current += step;
+    }
   }
 
   float rescale(float lower_bound, float upper_bound, float n) {
