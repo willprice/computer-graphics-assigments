@@ -13,7 +13,7 @@ void Triangle::ComputeNormal() {
 }
 
 vec3 Triangle::e1() {
-  return v1 -v0;
+  return v1 - v0;
 }
 
 vec3 Triangle::e2() {
