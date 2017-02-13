@@ -5,7 +5,6 @@
 #include "omp.h"
 
 #include "interpolation.hpp"
-#include "projection.hpp"
 #include "SDLauxiliary.hpp"
 #include "models/cornell_box.hpp"
 #include "triangle.hpp"

@@ -7,7 +7,6 @@
 #include "SDLauxiliary.hpp"
 #include "interpolation.hpp"
 #include "models/cornell_box.hpp"
-#include "projection.hpp"
 #include "triangle.hpp"
 
 using namespace std;
