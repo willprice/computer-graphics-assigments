@@ -6,7 +6,6 @@
 
 #include "SDLauxiliary.hpp"
 #include "interpolation.hpp"
-#include "intersection.hpp"
 #include "models/cornell_box.hpp"
 #include "projection.hpp"
 #include "triangle.hpp"
