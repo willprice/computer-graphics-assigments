@@ -76,6 +76,10 @@ void calculateScreenPixelCentres();
 
 void vertexShader(const vec3 &v, ivec2 &p);
 
+vector<ivec2> constructPixelLine(ivec2 start, ivec2 end);
+
+ivec2 project(vec3 point);
+
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT);
   TIME = SDL_GetTicks(); // Set start value for timer.
@@ -110,20 +114,44 @@ void Draw() {
   updateCameraRotation();
 
   for (int i = 0; i < triangles.size(); ++i) {
-    vector<vec3> vertices(3);
-    vertices[0] = triangles[i].v0;
-    vertices[1] = triangles[i].v1;
-    vertices[2] = triangles[i].v2;
+    vector<ivec2> vertices(3);
+    vertices[0] = project(triangles[i].v0);
+    vertices[1] = project(triangles[i].v1);
+    vertices[2] = project(triangles[i].v2);
 
-    for (int v = 0; v < 3; ++v) {
-      ivec2 projPos;
-      vertexShader(vertices[v], projPos);
-      vec3 color(1, 1, 1);
-      PutPixelSDL(screen, projPos.x, projPos.y, color);
+    vector<ivec2> edge1 = constructPixelLine(vertices[0], vertices[1]);
+    vector<ivec2> edge2 = constructPixelLine(vertices[1], vertices[2]);
+    vector<ivec2> edge3 = constructPixelLine(vertices[0], vertices[2]);
+
+    vector<vector<ivec2>> edges = {edge1, edge2, edge3};
+
+    for (auto edge : edges) {
+      for (auto pixel : edge) {
+        //ivec2 projPos;
+        //vertexShader(pixel, projPos);
+        vec3 color(1, 1, 1);
+        PutPixelSDL(screen, pixel.x, pixel.y, color);
+      }
     }
   }
 
   SDL_UpdateRect(screen, 0, 0, 0, 0);
+}
+
+ivec2 project(vec3 point) {
+  ivec2 projection;
+   vertexShader(point, projection);
+   return projection;
+}
+
+vector<ivec2> constructPixelLine(ivec2 start, ivec2 end) {
+  ivec2 delta = glm::abs(start - end);
+  int pixel_count = glm::max( delta.x, delta.y ) + 1;
+
+  vector<ivec2> line(pixel_count);
+
+  interpolate(start, end, line);
+  return line;
 }
 
 void vertexShader(const vec3 &world_point, ivec2 &image_point) {
