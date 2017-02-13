@@ -11,3 +11,4 @@ enable_testing()
 
 add_subdirectory(src/cg)
 add_subdirectory(src/raytracer)
+add_subdirectory(src/rasteriser)
