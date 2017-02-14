@@ -80,6 +80,8 @@ vector<ivec2> constructPixelLine(ivec2 start, ivec2 end);
 
 ivec2 project(vec3 point);
 
+void drawLineSDL( SDL_Surface* surface, ivec2 a, ivec2 b, vec3 color );
+
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT);
   TIME = SDL_GetTicks(); // Set start value for timer.
@@ -119,6 +121,12 @@ void Draw() {
     vertices[1] = project(triangles[i].v1);
     vertices[2] = project(triangles[i].v2);
 
+    vec3 color(1, 1, 1);
+    drawLineSDL(screen, vertices[0], vertices[1], color);
+    drawLineSDL(screen, vertices[1], vertices[2], color);
+    drawLineSDL(screen, vertices[0], vertices[2], color);
+
+    /*
     vector<ivec2> edge1 = constructPixelLine(vertices[0], vertices[1]);
     vector<ivec2> edge2 = constructPixelLine(vertices[1], vertices[2]);
     vector<ivec2> edge3 = constructPixelLine(vertices[0], vertices[2]);
@@ -133,9 +141,17 @@ void Draw() {
         PutPixelSDL(screen, pixel.x, pixel.y, color);
       }
     }
+    */
   }
 
   SDL_UpdateRect(screen, 0, 0, 0, 0);
+}
+
+void drawLineSDL( SDL_Surface* surface, ivec2 a, ivec2 b, vec3 color ) {
+  vector<ivec2> edge = constructPixelLine(a, b);
+  for (auto pixel : edge) {
+    PutPixelSDL(surface, pixel.x, pixel.y, color);
+  }
 }
 
 ivec2 project(vec3 point) {
