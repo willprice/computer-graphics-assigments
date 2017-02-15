@@ -37,6 +37,7 @@ vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
 SDL_Surface *screen;
 int TIME;
 vector<Triangle> triangles;
+vec3 currentColor;
 
 // Adding a tiny amount of camera rotation fixes little black spots that appear
 // at the intersection of triangles
@@ -80,7 +81,16 @@ vector<ivec2> constructPixelLine(ivec2 start, ivec2 end);
 
 ivec2 project(vec3 point);
 
-void drawLineSDL( SDL_Surface* surface, ivec2 a, ivec2 b, vec3 color );
+void drawLineSDL(SDL_Surface *surface, ivec2 a, ivec2 b, vec3 color);
+
+void drawPolygonEdges(const vector<vec3> &vertices);
+
+void computeRows(const vector<ivec2> &vertexPixels,
+                        vector<ivec2> &leftPixels, vector<ivec2> &rightPixels);
+
+void drawRows( const vector<ivec2>& leftPixels, const vector<ivec2>& rightPixels );
+
+void drawPolygon( const vector<vec3>& vertices );
 
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -116,38 +126,95 @@ void Draw() {
   updateCameraRotation();
 
   for (int i = 0; i < triangles.size(); ++i) {
-    vector<ivec2> vertices(3);
-    vertices[0] = project(triangles[i].v0);
-    vertices[1] = project(triangles[i].v1);
-    vertices[2] = project(triangles[i].v2);
-
-    vec3 color(1, 1, 1);
-    drawLineSDL(screen, vertices[0], vertices[1], color);
-    drawLineSDL(screen, vertices[1], vertices[2], color);
-    drawLineSDL(screen, vertices[0], vertices[2], color);
-
-    /*
-    vector<ivec2> edge1 = constructPixelLine(vertices[0], vertices[1]);
-    vector<ivec2> edge2 = constructPixelLine(vertices[1], vertices[2]);
-    vector<ivec2> edge3 = constructPixelLine(vertices[0], vertices[2]);
-
-    vector<vector<ivec2>> edges = {edge1, edge2, edge3};
-
-    for (auto edge : edges) {
-      for (auto pixel : edge) {
-        //ivec2 projPos;
-        //vertexShader(pixel, projPos);
-        vec3 color(1, 1, 1);
-        PutPixelSDL(screen, pixel.x, pixel.y, color);
-      }
-    }
-    */
+    currentColor = triangles[i].color;
+    vector<vec3> vertices(3);
+    vertices[0] = triangles[i].v0;
+    vertices[1] = triangles[i].v1;
+    vertices[2] = triangles[i].v2;
+    drawPolygonEdges(vertices);
+    drawPolygon( vertices );
   }
-
   SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
 
-void drawLineSDL( SDL_Surface* surface, ivec2 a, ivec2 b, vec3 color ) {
+void drawPolygon( const vector<vec3>& vertices ) {
+  int V = vertices.size();
+  vector<ivec2> vertexPixels( V );
+  for( int i=0; i<V; ++i )
+  vertexShader( vertices[i], vertexPixels[i] );
+  vector<ivec2> leftPixels;
+  vector<ivec2> rightPixels;
+  computeRows( vertexPixels, leftPixels, rightPixels );
+  drawRows( leftPixels, rightPixels );
+}
+
+void drawRows( const vector<ivec2>& leftPixels, const vector<ivec2>& rightPixels ) {
+  for (int i = 0; i < leftPixels.size(); i++) {
+    ivec2 leftPixel = leftPixels[i];
+    ivec2 rightPixel = rightPixels[i];
+    for (int x = leftPixel.x; x < rightPixel.x; x++) {
+      PutPixelSDL(screen, x , leftPixel.y, currentColor);
+    }
+  }
+}
+
+void computeRows(const vector<ivec2> &vertexPixels,
+                        vector<ivec2> &leftPixels, vector<ivec2> &rightPixels) {
+  int max_y = vertexPixels[0].y;
+  int min_y = vertexPixels[0].y;
+  for (auto vertexPixel : vertexPixels) {
+    if (vertexPixel.y < min_y) {
+      min_y = vertexPixel.y;
+    } else if (vertexPixel.y > max_y) {
+      max_y = vertexPixel.y;
+    }
+  }
+  int numRowsOccupied = max_y - min_y + 1;
+
+  leftPixels.resize(numRowsOccupied);
+  rightPixels.resize(numRowsOccupied);
+
+  for (int i = 0; i < numRowsOccupied; ++i) {
+    leftPixels[i].x = +numeric_limits<int>::max();
+    rightPixels[i].x = -numeric_limits<int>::max();
+  }
+
+  vector<vector<ivec2>> edges(3);
+  edges[0] = constructPixelLine(vertexPixels[0], vertexPixels[1]);
+  edges[1] = constructPixelLine(vertexPixels[1], vertexPixels[2]);
+  edges[2] = constructPixelLine(vertexPixels[0], vertexPixels[2]);
+
+  // Find leftmost and rightmost pixels of the polygon for each row
+
+  for (auto edge : edges) {
+    for (auto pixel : edge) {
+      int relative_y = pixel.y - min_y;
+      if (pixel.x < leftPixels[relative_y].x) {
+        leftPixels[relative_y] = pixel;
+      }
+      if (pixel.x > rightPixels[relative_y].x) {
+        rightPixels[relative_y] = pixel;
+      }
+    }
+  }
+}
+
+void drawPolygonEdges(const vector<vec3> &vertices) {
+  int V = vertices.size();
+  // Transform each vertex from 3D world position to 2D image position:
+  vector<ivec2> projectedVertices(V);
+  for (int i = 0; i < V; ++i) {
+    vertexShader(vertices[i], projectedVertices[i]);
+  }
+  // Loop over all vertices and draw the edge from it to the next vertex:
+  for (int i = 0; i < V; ++i) {
+    int j = (i + 1) % V; // The next vertex
+    vec3 color(1, 1, 1);
+    drawLineSDL(screen, projectedVertices[i], projectedVertices[j], color);
+  }
+}
+
+void drawLineSDL(SDL_Surface *surface, ivec2 a, ivec2 b, vec3 color) {
   vector<ivec2> edge = constructPixelLine(a, b);
   for (auto pixel : edge) {
     PutPixelSDL(surface, pixel.x, pixel.y, color);
@@ -156,13 +223,13 @@ void drawLineSDL( SDL_Surface* surface, ivec2 a, ivec2 b, vec3 color ) {
 
 ivec2 project(vec3 point) {
   ivec2 projection;
-   vertexShader(point, projection);
-   return projection;
+  vertexShader(point, projection);
+  return projection;
 }
 
 vector<ivec2> constructPixelLine(ivec2 start, ivec2 end) {
   ivec2 delta = glm::abs(start - end);
-  int pixel_count = glm::max( delta.x, delta.y ) + 1;
+  int pixel_count = glm::max(delta.x, delta.y) + 1;
 
   vector<ivec2> line(pixel_count);
 
@@ -172,8 +239,12 @@ vector<ivec2> constructPixelLine(ivec2 start, ivec2 end) {
 
 void vertexShader(const vec3 &world_point, ivec2 &image_point) {
   vec3 point = (world_point - CAMERA_CENTRE) * CAMERA_ROTATION;
-  image_point.x = (SCREEN_WIDTH / WORLD_WIDTH) * FOCAL_LENGTH * point.x / point.z + SCREEN_WIDTH/2;
-  image_point.y = (SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y / point.z + SCREEN_HEIGHT / 2;
+  image_point.x =
+      (SCREEN_WIDTH / WORLD_WIDTH) * FOCAL_LENGTH * point.x / point.z +
+      SCREEN_WIDTH / 2;
+  image_point.y =
+      (SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y / point.z +
+      SCREEN_HEIGHT / 2;
 }
 
 void calculateScreenPixelCentres() {
