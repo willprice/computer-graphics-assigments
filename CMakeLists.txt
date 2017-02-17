@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 project(raytracer CXX)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 
 set(CMAKE_MODULE_PATH
@@ -12,3 +13,4 @@ enable_testing()
 add_subdirectory(src/cg)
 add_subdirectory(src/raytracer)
 add_subdirectory(src/rasteriser)
+
