@@ -11,13 +11,16 @@ namespace cg {
       glm::vec3 v2;
       glm::vec3 normal;
       glm::vec3 color;
+      bool mirror = false;
 
       Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color);
+      Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color, bool mirror);
+
       void ComputeNormal();
 
       glm::vec3 e1();
       glm::vec3 e2();
-      
+
   };
 };
 

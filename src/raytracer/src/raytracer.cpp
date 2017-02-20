@@ -127,9 +127,9 @@ void Draw()
 
   updateCameraRotation();
 
-#pragma omp parallel 
-  {
-#pragma omp for
+//#pragma omp parallel
+  //{
+//#pragma omp for
     for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
       for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
         vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y], FOCAL_LENGTH);
@@ -150,7 +150,7 @@ void Draw()
         }
       }
     }
-  }
+  //}
   SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
 
@@ -214,6 +214,20 @@ bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& tr
       closestIntersection = intersection;
     }
   }
+
+  //Bounce off surface if it is a mirror --- r = 2(nT.l)n - l where n is unit length
+  Triangle currentTriangle = triangles[closestIntersection.triangleIndex];
+
+  if (currentTriangle.mirror) {
+    //cout <<  "Mirror" << endl;
+    vec3 surfaceNormal = glm::normalize(currentTriangle.normal);
+    vec3 l = -direction;
+    vec3 r = 2 * (glm::dot(surfaceNormal, l)) - l;
+
+    //Find point that mirror reflects the light to
+    closest_intersection(closestIntersection.position, r, triangles, closestIntersection);
+  }
+
   return true;
 }
 float computeRenderTime() {
