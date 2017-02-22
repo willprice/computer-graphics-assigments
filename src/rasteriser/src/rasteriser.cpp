@@ -29,7 +29,7 @@ const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
 const float FOCAL_LENGTH = 2;
 
-static const float TRANSLATION_STEP_SIZE = 0.001;
+static const float TRANSLATION_STEP_SIZE = 0.01;
 static const float ROTATION_STEP_SIZE = 0.005;
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
@@ -187,11 +187,13 @@ void drawRows( const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels
     vector<Pixel> line(n);
     interpolate(leftPixel, rightPixel, line);
     for (auto pixel : line) {
-      if (depthBuffer[pixel.y][pixel.x] < pixel.zinv) {
-        depthBuffer[pixel.y][pixel.x] = pixel.zinv;
-        PutPixelSDL(screen, pixel.x , pixel.y, currentColor);
+      if (pixel.y < SCREEN_HEIGHT && pixel.y >= 0 &&
+              pixel.x < SCREEN_WIDTH && pixel.x >= 0) {
+        if (depthBuffer[pixel.y][pixel.x] < pixel.zinv) {
+          depthBuffer[pixel.y][pixel.x] = pixel.zinv;
+          PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
+        }
       }
-
     }
   }
 }
@@ -281,6 +283,8 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
 void vertexShader(const vec3 &world_point, Pixel &image_point) {
   vec3 point = (world_point - CAMERA_CENTRE) * CAMERA_ROTATION;
 
+  // Bad things will probably happen if z is zero
+  assert(point.z != 0);
   image_point.zinv = 1 / point.z;
 
   //OPTIMISATION NOTE: * image_point.zinv == * 1 / point.z
