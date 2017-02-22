@@ -123,6 +123,11 @@ void Update() {
   Uint8 *keystate = SDL_GetKeyState(0);
   updateCameraParameters(keystate);
   updateLightPosition(keystate);
+  for( int y=0; y<SCREEN_HEIGHT; ++y ) {
+    for( int x=0; x<SCREEN_WIDTH; ++x ) {
+      depthBuffer[y][x] = 0;
+    }
+  }
 }
 
 void Draw() {
@@ -178,8 +183,15 @@ void drawRows( const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels
   for (uint i = 0; i < leftPixels.size(); i++) {
     Pixel leftPixel = leftPixels[i];
     Pixel rightPixel = rightPixels[i];
-    for (int x = leftPixel.x; x < rightPixel.x; x++) {
-      PutPixelSDL(screen, x , leftPixel.y, currentColor);
+    int n = rightPixel.x - leftPixel.x + 1;
+    vector<Pixel> line(n);
+    interpolate(leftPixel, rightPixel, line);
+    for (auto pixel : line) {
+      if (depthBuffer[pixel.y][pixel.x] < pixel.zinv) {
+        depthBuffer[pixel.y][pixel.x] = pixel.zinv;
+        PutPixelSDL(screen, pixel.x , pixel.y, currentColor);
+      }
+
     }
   }
 }
@@ -268,11 +280,15 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
 
 void vertexShader(const vec3 &world_point, Pixel &image_point) {
   vec3 point = (world_point - CAMERA_CENTRE) * CAMERA_ROTATION;
+
+  image_point.zinv = 1 / point.z;
+
+  //OPTIMISATION NOTE: * image_point.zinv == * 1 / point.z
   image_point.x = (int) (
-      (SCREEN_WIDTH / WORLD_WIDTH) * FOCAL_LENGTH * point.x / point.z +
+      (SCREEN_WIDTH / WORLD_WIDTH) * FOCAL_LENGTH * point.x * image_point.zinv +
       SCREEN_WIDTH / 2);
   image_point.y = (int) (
-      (SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y / point.z +
+      (SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y * image_point.zinv +
       SCREEN_HEIGHT / 2);
 }
 
