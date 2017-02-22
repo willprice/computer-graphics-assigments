@@ -39,13 +39,14 @@ namespace cg {
     return;
   }
 
-  void interpolate( ivec2 a, ivec2 b, vector<ivec2>& result ) {
+  void interpolate(ivec2 start, ivec2 end, vector<ivec2>& result ) {
     int N = result.size();
-    vec2 step = vec2(b-a) / float(max(N-1,1));
-    vec2 current( a );
-    for( int i=0; i<N; ++i ) {
-      result[i] = current;
-      current += step;
+    vec2 step = vec2(end-start) / float(max(N-1,1));
+    // OPTIMISATION TRADE OFF: This is inefficient because we multiply each time, intead we could keep track of our
+    // place in the interpolated sequence and add each time
+    for(int i=0; i<N; ++i ) {
+      result[i].x = glm::round(start.x + i*step.x);
+      result[i].y = glm::round(start.y + i*step.y);
     }
   }
 

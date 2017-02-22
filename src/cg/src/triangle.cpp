@@ -1,5 +1,7 @@
 #include "triangle.hpp"
+#include "debug.hpp"
 #include "glm/glm.hpp"
+#include <ostream>
 
 namespace cg {
   using namespace glm;
@@ -18,6 +20,11 @@ vec3 Triangle::e1() {
 
 vec3 Triangle::e2() {
   return v2 -v0;
+}
+
+
+std::ostream& operator<<(std::ostream& os, Triangle& triangle) {
+  os << "[" << triangle.v0 << ", " << triangle.v1 << ", " << triangle.v2 << "]";
 }
 
 }

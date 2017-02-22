@@ -2,6 +2,7 @@
 #define LIBCG_TRIANGLE_H
 // This code originates from TestModel.h provided by Carl Henrik Ek
 #include <glm/glm.hpp>
+#include <ostream>
 
 namespace cg {
   class Triangle {
@@ -17,8 +18,10 @@ namespace cg {
 
       glm::vec3 e1();
       glm::vec3 e2();
-      
-  };
+
+    };
+  std::ostream& operator<<(std::ostream& os, Triangle& triangle);
 };
+
 
 #endif
