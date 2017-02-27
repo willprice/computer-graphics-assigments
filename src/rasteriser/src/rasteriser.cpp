@@ -43,6 +43,10 @@ struct Pixel {
   float zinv;
 };
 
+struct Vertex {
+  vec3 position;
+};
+
 SDL_Surface *screen;
 int TIME;
 vector<Triangle> triangles;
@@ -84,7 +88,7 @@ float computeRenderTime();
 
 void calculateScreenPixelCentres();
 
-void vertexShader(const vec3 &v, Pixel &p);
+void vertexShader(const Vertex &v, Pixel &p);
 
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line);
 
@@ -101,7 +105,10 @@ void computeRows(const vector<Pixel> &vertexPixels,
 
 void drawRows( const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels );
 
-void drawPolygon( const vector<vec3>& vertices );
+void drawPolygon( const vector<Vertex>& vertices );
+
+
+void pixelShader(const Pixel &pixel);
 
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, false);
@@ -141,10 +148,10 @@ void Draw() {
 
   for (uint i = 0; i < triangles.size(); ++i) {
     currentColor = triangles[i].color;
-    vector<vec3> vertices(3);
-    vertices[0] = triangles[i].v0;
-    vertices[1] = triangles[i].v1;
-    vertices[2] = triangles[i].v2;
+    vector<Vertex> vertices(3);
+    vertices[0] = { triangles[i].v0 };
+    vertices[1] = { triangles[i].v1 };
+    vertices[2] = { triangles[i].v2 };
     drawPolygon( vertices );
   }
 
@@ -167,7 +174,7 @@ void interpolate( Pixel start, Pixel end, vector<Pixel>& result ) {
   }
 }
 
-void drawPolygon( const vector<vec3>& vertices ) {
+void drawPolygon( const vector<Vertex>& vertices ) {
   int V = vertices.size();
   vector<Pixel> vertexPixels( V );
   for( int i=0; i<V; ++i ) {
@@ -189,13 +196,17 @@ void drawRows( const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels
     for (auto pixel : line) {
       if (pixel.y < SCREEN_HEIGHT && pixel.y >= 0 &&
               pixel.x < SCREEN_WIDTH && pixel.x >= 0) {
-        if (depthBuffer[pixel.y][pixel.x] < pixel.zinv) {
-          depthBuffer[pixel.y][pixel.x] = pixel.zinv;
-          PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
-        }
+        pixelShader(pixel);
       }
     }
   }
+}
+
+void pixelShader(const Pixel &pixel) {
+  if (depthBuffer[pixel.y][pixel.x] < pixel.zinv) {
+          depthBuffer[pixel.y][pixel.x] = pixel.zinv;
+          PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
+        }
 }
 
 void computeRows(const vector<Pixel> &vertexPixels,
@@ -241,34 +252,12 @@ void computeRows(const vector<Pixel> &vertexPixels,
     }
   }
 }
-
-void drawPolygonEdges(const vector<vec3> &vertices) {
-  uint V = (uint) vertices.size();
-  // Transform each vertex from 3D world position to 2D image position:
-  vector<Pixel> projectedVertices(V);
-  for (uint i = 0; i < V; ++i) {
-    vertexShader(vertices[i], projectedVertices[i]);
-  }
-  // Loop over all vertices and draw the edge from it to the next vertex:
-  for (uint i = 0; i < V; ++i) {
-    int j = (i + 1) % V; // The next vertex
-    vec3 color(1, 1, 1);
-    drawLineSDL(screen, projectedVertices[i], projectedVertices[j], color);
-  }
-}
-
 void drawLineSDL(SDL_Surface *surface, Pixel a, Pixel b, vec3 color) {
   vector<Pixel> edge;
   constructPixelLine(a, b, edge);
   for (auto pixel : edge) {
     PutPixelSDL(surface, pixel.x, pixel.y, color);
   }
-}
-
-Pixel project(vec3 point) {
-  Pixel projection;
-  vertexShader(point, projection);
-  return projection;
 }
 
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
@@ -280,8 +269,8 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
   interpolate(start, end, line);
 }
 
-void vertexShader(const vec3 &world_point, Pixel &image_point) {
-  vec3 point = (world_point - CAMERA_CENTRE) * CAMERA_ROTATION;
+void vertexShader(const Vertex &world_point, Pixel &image_point) {
+  vec3 point = (world_point.position - CAMERA_CENTRE) * CAMERA_ROTATION;
 
   // Bad things will probably happen if z is zero
   assert(point.z != 0);
