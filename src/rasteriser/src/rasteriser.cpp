@@ -43,10 +43,6 @@ struct Pixel {
   float zinv;
 };
 
-struct Vertex {
-  vec3 position;
-};
-
 SDL_Surface *screen;
 int TIME;
 vector<Triangle> triangles;
@@ -149,9 +145,9 @@ void Draw() {
   for (uint i = 0; i < triangles.size(); ++i) {
     currentColor = triangles[i].color;
     vector<Vertex> vertices(3);
-    vertices[0] = { triangles[i].v0 };
-    vertices[1] = { triangles[i].v1 };
-    vertices[2] = { triangles[i].v2 };
+    vertices[0] = triangles[i].v0;
+    vertices[1] = triangles[i].v1;
+    vertices[2] = triangles[i].v2;
     drawPolygon( vertices );
   }
 

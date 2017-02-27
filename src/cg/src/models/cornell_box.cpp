@@ -122,21 +122,21 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
   // Scale to the volume [-1,1]^3
 
   for (size_t i = 0; i < triangles.size(); ++i) {
-    triangles[i].v0 *= 2 / L;
-    triangles[i].v1 *= 2 / L;
-    triangles[i].v2 *= 2 / L;
+    triangles[i].v0.position *= 2 / L;
+    triangles[i].v1.position *= 2 / L;
+    triangles[i].v2.position *= 2 / L;
 
-    triangles[i].v0 -= vec3(1, 1, 1);
-    triangles[i].v1 -= vec3(1, 1, 1);
-    triangles[i].v2 -= vec3(1, 1, 1);
+    triangles[i].v0.position -= vec3(1, 1, 1);
+    triangles[i].v1.position -= vec3(1, 1, 1);
+    triangles[i].v2.position -= vec3(1, 1, 1);
 
-    triangles[i].v0.x *= -1;
-    triangles[i].v1.x *= -1;
-    triangles[i].v2.x *= -1;
+    triangles[i].v0.position.x *= -1;
+    triangles[i].v1.position.x *= -1;
+    triangles[i].v2.position.x *= -1;
 
-    triangles[i].v0.y *= -1;
-    triangles[i].v1.y *= -1;
-    triangles[i].v2.y *= -1;
+    triangles[i].v0.position.y *= -1;
+    triangles[i].v1.position.y *= -1;
+    triangles[i].v2.position.y *= -1;
 
     triangles[i].ComputeNormal();
   }

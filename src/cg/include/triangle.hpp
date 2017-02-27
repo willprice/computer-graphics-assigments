@@ -3,13 +3,14 @@
 // This code originates from TestModel.h provided by Carl Henrik Ek
 #include <glm/glm.hpp>
 #include <ostream>
+#include "vertex.hpp"
 
 namespace cg {
   class Triangle {
     public:
-      glm::vec3 v0;
-      glm::vec3 v1;
-      glm::vec3 v2;
+      Vertex v0;
+      Vertex v1;
+      Vertex v2;
       glm::vec3 normal;
       glm::vec3 color;
 

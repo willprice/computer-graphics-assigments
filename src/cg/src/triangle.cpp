@@ -2,6 +2,7 @@
 #include "debug.hpp"
 #include "glm/glm.hpp"
 #include <ostream>
+#include "vertex.hpp"
 
 namespace cg {
   using namespace glm;
@@ -15,16 +16,16 @@ void Triangle::ComputeNormal() {
 }
 
 vec3 Triangle::e1() {
-  return v1 - v0;
+  return v1.position - v0.position;
 }
 
 vec3 Triangle::e2() {
-  return v2 -v0;
+  return v2.position - v0.position;
 }
 
 
 std::ostream& operator<<(std::ostream& os, Triangle& triangle) {
-  os << "[" << triangle.v0 << ", " << triangle.v1 << ", " << triangle.v2 << "]";
+  os << "[" << triangle.v0.position << ", " << triangle.v1.position << ", " << triangle.v2.position << "]";
 }
 
 }
