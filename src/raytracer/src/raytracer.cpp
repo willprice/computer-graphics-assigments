@@ -187,7 +187,7 @@ bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& tr
   for (int i = 0; i < triangles.size(); i++) {
     Triangle triangle = triangles[i];
     mat3 A(-direction, triangle.e1(), triangle.e2());
-    vec3 b = start - triangle.v0;
+    vec3 b = start - triangle.v0.position;
     if (glm::determinant(A) == 0) {
       continue;
     }

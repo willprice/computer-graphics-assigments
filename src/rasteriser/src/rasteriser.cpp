@@ -3,6 +3,8 @@
 #include <cmath>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <map>
+#include <set>
 
 #include "SDLauxiliary.hpp"
 #include "interpolation.hpp"
@@ -106,12 +108,22 @@ void drawPolygon( const vector<Vertex>& vertices );
 
 void pixelShader(const Pixel &pixel);
 
+void computeVertexNormals(vector<Triangle> triangles);
+
+vector<Triangle> findTrianglesWithVertex(Vertex &vertex, vector<Triangle> triangles);
+
+void updateVertexNormal(const set<Triangle*> &triangles, const Vertex &vertex, vec3 normal);
+
+
+void setAdd(vector<Triangle> &triangles, Triangle &triangle);
+
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, false);
   TIME = SDL_GetTicks(); // Set start value for timer.
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
+  computeVertexNormals(triangles);
 
   while (NoQuitMessageSDL()) {
     Update();
@@ -119,6 +131,54 @@ int main(int argc, char *argv[]) {
   }
 
   return 0;
+}
+
+void computeVertexNormals(vector<Triangle> triangles) {
+  map<Vertex*, set<Triangle*>> vertexToTrianglesSharingVertex;
+
+  for (auto &triangle : triangles) {
+    vertexToTrianglesSharingVertex[&triangle.v0].insert(&triangle);
+    vertexToTrianglesSharingVertex[&triangle.v1].insert(&triangle);
+    vertexToTrianglesSharingVertex[&triangle.v2].insert(&triangle);
+  }
+  cout << vertexToTrianglesSharingVertex.size() << endl;
+
+  for (auto &p : vertexToTrianglesSharingVertex) {
+    const Vertex *vertex = p.first;
+    const set<Triangle*> &trianglesSharingVertex = p.second;
+    vec3 normal = { 0, 0, 0};
+    for (auto &triangle : p.second) {
+      normal += triangle->normal;
+    }
+    normal /= p.second.size();
+
+    updateVertexNormal(trianglesSharingVertex, *vertex, normal);
+  }
+}
+
+void updateVertexNormal(const set<Triangle*> &triangles, const Vertex &vertex, vec3 normal) {
+  for (auto &triangle : triangles) {
+    if (triangle->v0 == vertex) {
+      triangle->v0.normal = normal;
+    }
+    if (triangle->v1 == vertex) {
+      triangle->v1.normal = normal;
+    }
+    if (triangle->v2 == vertex) {
+      triangle->v2.normal = normal;
+    }
+  }
+}
+
+vector<Triangle> findTrianglesWithVertex(Vertex &vertex, vector<Triangle> triangles) {
+  vector<Triangle> trianglesSharingVertex;
+  for (auto &triangle : triangles) {
+    if (triangle.v0 == vertex ||
+            triangle.v1 == vertex ||
+            triangle.v2 == vertex) {
+      trianglesSharingVertex.push_back(triangle);
+    }
+  }
 }
 
 void Update() {
@@ -163,7 +223,7 @@ void interpolate( Pixel start, Pixel end, vector<Pixel>& result ) {
   float x_step_size = (end.x - start.x) /  float(max(N - 1, 1));
   float y_step_size = (end.y - start.y) / float(max(N - 1, 1));
   float zinv_step_size = (end.zinv - start.zinv) / float(max(N - 1, 1));
-  for (int i = 0; i < result.size(); i++) {
+  for (size_t i = 0; i < result.size(); i++) {
     result[i].x = glm::round(start.x + x_step_size * i);
     result[i].y = glm::round(start.y + y_step_size * i);
     result[i].zinv = start.zinv + zinv_step_size * i;

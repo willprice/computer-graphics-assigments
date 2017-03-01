@@ -23,6 +23,14 @@ vec3 Triangle::e2() {
   return v2.position - v0.position;
 }
 
+bool Triangle::operator==(const Triangle& other) {
+  // NOTE: maybe check normal as well?
+
+  return v0 == other.v0 &&
+         v1 == other.v1 &&
+         v2 == other.v2 &&
+         color == other.color;
+}
 
 std::ostream& operator<<(std::ostream& os, Triangle& triangle) {
   os << "[" << triangle.v0.position << ", " << triangle.v1.position << ", " << triangle.v2.position << "]";

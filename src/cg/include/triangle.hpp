@@ -15,11 +15,11 @@ namespace cg {
       glm::vec3 color;
 
       Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color);
-      void ComputeNormal();
+      bool operator==(const Triangle& other);
 
+      void ComputeNormal();
       glm::vec3 e1();
       glm::vec3 e2();
-
     };
   std::ostream& operator<<(std::ostream& os, Triangle& triangle);
 };
