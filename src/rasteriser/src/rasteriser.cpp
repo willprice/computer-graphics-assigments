@@ -44,6 +44,7 @@ struct Pixel {
   int y;
   float zinv;
   vec3 illumination;
+  vec3 pos3d;
 };
 
 SDL_Surface *screen;
@@ -68,6 +69,9 @@ vec3 LIGHT_POSITION(0, -0.5, -0.7);
 vec3 LIGHT_POWER = 14.f *vec3( 1, 1, 1 );
 vec3 INDIRECT_LIGHT_POWER_PER_AREA = 0.5f*vec3( 1, 1, 1 );
 
+vec3 currentNormal;
+float currentReflectance;
+
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
 
@@ -91,8 +95,6 @@ void calculateScreenPixelCentres();
 void vertexShader(const Vertex &v, Pixel &p);
 
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line);
-
-Pixel project(vec3 point);
 
 void drawLineSDL(SDL_Surface *surface, Pixel a, Pixel b, vec3 color);
 
@@ -192,6 +194,9 @@ void Draw() {
 
   for (uint i = 0; i < triangles.size(); ++i) {
     currentColor = triangles[i].color;
+    currentNormal = triangles[i].normal;
+    //NOTE: We assume that the reflectance is constant over the triangle.
+    currentReflectance = triangles[i].v0.reflectance;
     vector<Vertex> vertices(3);
     vertices[0] = triangles[i].v0;
     vertices[1] = triangles[i].v1;
@@ -212,11 +217,13 @@ void interpolate( Pixel start, Pixel end, vector<Pixel>& result ) {
   float y_step_size = (end.y - start.y) / float(max(N - 1, 1));
   float zinv_step_size = (end.zinv - start.zinv) / float(max(N - 1, 1));
   vec3 illumination_step_size = (end.illumination - start.illumination) / float(max(N - 1, 1));
+  vec3 pos3d_step_size = (end.pos3d - start.pos3d) / float(max(N - 1, 1));
   for (size_t i = 0; i < result.size(); i++) {
     result[i].x = glm::round(start.x + x_step_size * i);
     result[i].y = glm::round(start.y + y_step_size * i);
     result[i].zinv = start.zinv + zinv_step_size * i;
-    result[i].illumination = start.illumination + illumination_step_size * float(i); //Need to round??
+    result[i].illumination = start.illumination + illumination_step_size * float(i);
+    result[i].pos3d = start.pos3d + pos3d_step_size * float(i);
   }
 }
 
@@ -255,11 +262,22 @@ void pixelShader(const Pixel &pixel) {
           PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
         }
 */
+//Vector from surface point to the light source
+vec3 surface_to_light = LIGHT_POSITION - pixel.pos3d;
+
+//Compute illumination of vertex
+float scale = (4 * glm::pi<float>() * length(surface_to_light) * length(surface_to_light));
+vec3 direct_illumination = (LIGHT_POWER * max(dot(normalize(surface_to_light),
+                                                  normalize(currentNormal)), 0.0f))
+                                                  / scale;
+
+vec3 illumination = currentReflectance * (direct_illumination + INDIRECT_LIGHT_POWER_PER_AREA);
+
   int x = pixel.x;
   int y = pixel.y;
   if( pixel.zinv > depthBuffer[y][x] ) {
     depthBuffer[y][x] = pixel.zinv;
-    PutPixelSDL( screen, x, y, pixel.illumination * currentColor );
+    PutPixelSDL( screen, x, y, illumination * currentColor );
   }
 }
 
@@ -338,16 +356,9 @@ void vertexShader(const Vertex &world_point, Pixel &pixel) {
       (SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y * pixel.zinv +
       SCREEN_HEIGHT / 2);
 
-  //Vector from surface point to the light source
-  vec3 surface_to_light = LIGHT_POSITION - world_point.position;
 
-  //Compute illumination of vertex
-  float scale = (4 * glm::pi<float>() * length(surface_to_light) * length(surface_to_light));
-  vec3 direct_illumination = (LIGHT_POWER * max(dot(normalize(surface_to_light),
-                                                    normalize(world_point.normal)), 0.0f))
-                                                    / scale;
 
-  pixel.illumination = world_point.reflectance * (direct_illumination + INDIRECT_LIGHT_POWER_PER_AREA);
+  pixel.pos3d = world_point.position;
 }
 
 void calculateScreenPixelCentres() {
