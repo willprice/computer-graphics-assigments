@@ -1,0 +1,3 @@
+-Isrc/cg/include
+-I/usr/include/SDL
+-I../glm
