@@ -1,10 +1,10 @@
-#include "omp.h"
 #include <SDL.h>
 #include <cmath>
 #include <glm/glm.hpp>
 #include <iostream>
 #include <map>
 #include <set>
+#include <glm/gtc/constants.hpp>
 
 #include "SDLauxiliary.hpp"
 #include "interpolation.hpp"
@@ -43,6 +43,7 @@ struct Pixel {
   int x;
   int y;
   float zinv;
+  vec3 illumination;
 };
 
 SDL_Surface *screen;
@@ -64,7 +65,8 @@ mat3 CAMERA_ROTATION_Y;
 mat3 CAMERA_ROTATION_Z;
 
 vec3 LIGHT_POSITION(0, -0.5, -0.7);
-vec3 LIGHT_COLOR = 14.f * vec3(1, 1, 1);
+vec3 LIGHT_POWER = 14.f *vec3( 1, 1, 1 );
+vec3 INDIRECT_LIGHT_POWER_PER_AREA = 0.5f*vec3( 1, 1, 1 );
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
@@ -108,9 +110,7 @@ void drawPolygon( const vector<Vertex>& vertices );
 
 void pixelShader(const Pixel &pixel);
 
-void computeVertexNormals(vector<Triangle> triangles);
-
-vector<Triangle> findTrianglesWithVertex(Vertex &vertex, vector<Triangle> triangles);
+void computeVertexNormals(vector<Triangle> &triangles);
 
 void updateVertexNormal(const set<Triangle*> &triangles, const Vertex &vertex, vec3 normal);
 
@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void computeVertexNormals(vector<Triangle> triangles) {
+void computeVertexNormals(vector<Triangle> &triangles) {
   map<Vertex*, set<Triangle*>> vertexToTrianglesSharingVertex;
 
   for (auto &triangle : triangles) {
@@ -141,7 +141,6 @@ void computeVertexNormals(vector<Triangle> triangles) {
     vertexToTrianglesSharingVertex[&triangle.v1].insert(&triangle);
     vertexToTrianglesSharingVertex[&triangle.v2].insert(&triangle);
   }
-  cout << vertexToTrianglesSharingVertex.size() << endl;
 
   for (auto &p : vertexToTrianglesSharingVertex) {
     const Vertex *vertex = p.first;
@@ -166,17 +165,6 @@ void updateVertexNormal(const set<Triangle*> &triangles, const Vertex &vertex, v
     }
     if (triangle->v2 == vertex) {
       triangle->v2.normal = normal;
-    }
-  }
-}
-
-vector<Triangle> findTrianglesWithVertex(Vertex &vertex, vector<Triangle> triangles) {
-  vector<Triangle> trianglesSharingVertex;
-  for (auto &triangle : triangles) {
-    if (triangle.v0 == vertex ||
-            triangle.v1 == vertex ||
-            triangle.v2 == vertex) {
-      trianglesSharingVertex.push_back(triangle);
     }
   }
 }
@@ -223,10 +211,12 @@ void interpolate( Pixel start, Pixel end, vector<Pixel>& result ) {
   float x_step_size = (end.x - start.x) /  float(max(N - 1, 1));
   float y_step_size = (end.y - start.y) / float(max(N - 1, 1));
   float zinv_step_size = (end.zinv - start.zinv) / float(max(N - 1, 1));
+  vec3 illumination_step_size = (end.illumination - start.illumination) / float(max(N - 1, 1));
   for (size_t i = 0; i < result.size(); i++) {
     result[i].x = glm::round(start.x + x_step_size * i);
     result[i].y = glm::round(start.y + y_step_size * i);
     result[i].zinv = start.zinv + zinv_step_size * i;
+    result[i].illumination = start.illumination + illumination_step_size * float(i); //Need to round??
   }
 }
 
@@ -259,10 +249,18 @@ void drawRows( const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels
 }
 
 void pixelShader(const Pixel &pixel) {
+  /*
   if (depthBuffer[pixel.y][pixel.x] < pixel.zinv) {
           depthBuffer[pixel.y][pixel.x] = pixel.zinv;
           PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
         }
+*/
+  int x = pixel.x;
+  int y = pixel.y;
+  if( pixel.zinv > depthBuffer[y][x] ) {
+    depthBuffer[y][x] = pixel.zinv;
+    PutPixelSDL( screen, x, y, pixel.illumination );
+  }
 }
 
 void computeRows(const vector<Pixel> &vertexPixels,
@@ -325,20 +323,31 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
   interpolate(start, end, line);
 }
 
-void vertexShader(const Vertex &world_point, Pixel &image_point) {
+void vertexShader(const Vertex &world_point, Pixel &pixel) {
   vec3 point = (world_point.position - CAMERA_CENTRE) * CAMERA_ROTATION;
 
   // Bad things will probably happen if z is zero
   assert(point.z != 0);
-  image_point.zinv = 1 / point.z;
+  pixel.zinv = 1 / point.z;
 
-  //OPTIMISATION NOTE: * image_point.zinv == * 1 / point.z
-  image_point.x = (int) (
-      (SCREEN_WIDTH / WORLD_WIDTH) * FOCAL_LENGTH * point.x * image_point.zinv +
+  //OPTIMISATION NOTE: * pixel.zinv == * 1 / point.z
+  pixel.x = (int) (
+      (SCREEN_WIDTH / WORLD_WIDTH) * FOCAL_LENGTH * point.x * pixel.zinv +
       SCREEN_WIDTH / 2);
-  image_point.y = (int) (
-      (SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y * image_point.zinv +
+  pixel.y = (int) (
+      (SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y * pixel.zinv +
       SCREEN_HEIGHT / 2);
+
+  //Vector from surface point to the light source
+  vec3 surface_to_light = LIGHT_POSITION - world_point.position;
+
+  //Compute illumination of vertex
+  float scale = (4 * glm::pi<float>() * length(surface_to_light) * length(surface_to_light));
+  vec3 direct_illumination = (LIGHT_POWER * max(dot(normalize(surface_to_light),
+                                                    normalize(world_point.normal)), 0.0f))
+                                                    / scale;
+
+  pixel.illumination = world_point.reflectance * (direct_illumination + INDIRECT_LIGHT_POWER_PER_AREA);
 }
 
 void calculateScreenPixelCentres() {
