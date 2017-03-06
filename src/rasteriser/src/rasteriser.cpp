@@ -259,7 +259,7 @@ void pixelShader(const Pixel &pixel) {
   int y = pixel.y;
   if( pixel.zinv > depthBuffer[y][x] ) {
     depthBuffer[y][x] = pixel.zinv;
-    PutPixelSDL( screen, x, y, pixel.illumination );
+    PutPixelSDL( screen, x, y, pixel.illumination * currentColor );
   }
 }
 
