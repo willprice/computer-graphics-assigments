@@ -29,11 +29,9 @@ const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
 const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
-const float WORLD_DEPTH = 2;
 const float FOCAL_LENGTH = 2;
 
 static const float TRANSLATION_STEP_SIZE = 0.01;
-static const float ROTATION_STEP_SIZE = 0.005;
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
@@ -77,46 +75,27 @@ float currentReflectance;
 
 void Update();
 void Draw();
-
 void updateCameraRotation();
-
 void updateCameraParameters(const Uint8 *keystate);
-
 void updateCameraPosition(const Uint8 *keystate);
-
 void updateCameraRotation(const Uint8 *keystate);
-
 void updateLightPosition(const Uint8 *keystate);
-
 float computeRenderTime();
-
 void calculateScreenPixelCentres();
-
 void vertexShader(const Vertex &v, Pixel &p);
-
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line);
-
 void drawLineSDL(SDL_Surface *surface, Pixel a, Pixel b, vec3 color);
-
 void drawPolygonEdges(const vector<vec3> &vertices);
-
 void interpolate(Pixel a, Pixel b, vector<Pixel> &result);
-
 void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
                  vector<Pixel> &rightPixels);
-
 void drawRows(const vector<Pixel> &leftPixels,
               const vector<Pixel> &rightPixels);
-
 void drawPolygon(const vector<Vertex> &vertices);
-
 void pixelShader(const Pixel &pixel);
-
 void computeVertexNormals(vector<Triangle> &triangles);
-
 void updateVertexNormal(const set<Triangle *> &triangles, const Vertex &vertex,
                         vec3 normal);
-
 void setAdd(vector<Triangle> &triangles, Triangle &triangle);
 
 int main(int argc, char *argv[]) {
