@@ -96,8 +96,6 @@ int main(int argc, char* argv[] )
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
 
-  SDL_WM_GrabInput(SDL_GRAB_ON);
-
   while( NoQuitMessageSDL() )
   {
     Update();
