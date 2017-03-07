@@ -27,6 +27,7 @@ Running `./bin/raytracer` after `make` will launch the ray tracer.
 
 Controls:
 * `Ctrl-C`: exit
+
 ### Rasteriser
 
 Running `./bin/rasteriser` after `make` will launch the rasteriser.
