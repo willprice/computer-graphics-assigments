@@ -1,3 +1,0 @@
-repository='external project URL'
-module='https://github.com/philsquared/Catch/archive/v1.6.1.zip'
-tag='MD5=1600a9cd833a76ebe74a2761fffaa9b3'
