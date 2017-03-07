@@ -28,6 +28,8 @@ const float WORLD_HEIGHT = 2;
 const float WORLD_DEPTH = 2;
 const float FOCAL_LENGTH = 2;
 
+const int MAX_NUM_BOUNCES = 1;
+
 static const float TRANSLATION_STEP_SIZE = 0.1;
 static const float ROTATION_STEP_SIZE = 0.05;
 
@@ -134,17 +136,41 @@ void Draw()
       for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
         vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y], FOCAL_LENGTH);
         Intersection closestIntersection;
-        if (closest_intersection(CAMERA_CENTRE, CAMERA_ROTATION * pixel_centre, triangles, closestIntersection)) {
+        vec3 direction = CAMERA_ROTATION * pixel_centre;
+        if (closest_intersection(CAMERA_CENTRE, direction, triangles, closestIntersection)) {
+          Triangle triangle = triangles[closestIntersection.triangleIndex];
+          int bounces = 0;
+          vec3 color = triangle.color;
+          while (triangle.mirror && bounces < MAX_NUM_BOUNCES + 1) {
+            vec3 surfaceNormal = glm::normalize(triangle.normal);
+
+            vec3 reflection = direction - 2 * glm::dot(direction, surfaceNormal) * surfaceNormal;
+
+            //Find point that mirror reflects the light to
+            if (closest_intersection(closestIntersection.position + 0.0001f * reflection, reflection, triangles, closestIntersection)) {
+              triangle = triangles[closestIntersection.triangleIndex];
+              color = triangle.color;
+            } else {
+              color = {0,0,0};
+              break;
+            }
+
+            bounces++;
+          }
+          if (bounces == MAX_NUM_BOUNCES + 1) {
+            color = {0,0,0};
+          }
+
           vec3 reflected_light(0, 0, 0);
           vec3 light_to_previous = -LIGHT_POSITION + closestIntersection.position;
           Intersection potential_occlusion;
           closest_intersection(LIGHT_POSITION, light_to_previous, triangles, potential_occlusion);
-          Triangle triangle = triangles[closestIntersection.triangleIndex];
+
           if (potential_occlusion.triangleIndex == closestIntersection.triangleIndex) {
             vec3 illumination = directLight(closestIntersection) + INDIRECT_LIGHT;
-            reflected_light = triangle.color * illumination;
+            reflected_light = color * illumination;
           } else {
-            reflected_light = triangle.color * INDIRECT_LIGHT;
+            reflected_light = color * INDIRECT_LIGHT;
           }
           PutPixelSDL(screen, x, y, reflected_light);
         }
@@ -214,20 +240,6 @@ bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& tr
       closestIntersection = intersection;
     }
   }
-
-  //Bounce off surface if it is a mirror --- r = 2(nT.l)n - l where n is unit length
-  Triangle currentTriangle = triangles[closestIntersection.triangleIndex];
-
-  if (currentTriangle.mirror) {
-    //cout <<  "Mirror" << endl;
-    vec3 surfaceNormal = glm::normalize(currentTriangle.normal);
-    vec3 l = -direction;
-    vec3 r = 2 * (glm::dot(surfaceNormal, l)) - l;
-
-    //Find point that mirror reflects the light to
-    closest_intersection(closestIntersection.position, r, triangles, closestIntersection);
-  }
-
   return true;
 }
 float computeRenderTime() {
