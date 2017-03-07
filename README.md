@@ -47,18 +47,18 @@ The basic ray tracer is built with
 ## Extensions
 
 - [x] indicates a completed extension
-- [] indicates an unattempted extension
+- [ ] indicates an unattempted extension
 
-- [] Anti-aliasing
-- [] Depth of field
-- [] Indirect illumination
-- [] Textures
-- [] Loading general models
-- [] Hierarchical spatial structures for geometry storage
-- [] Specular materials
-- [] Fractals
-- [] Optimisations
-- [] Global illumination
+- [ ] Anti-aliasing
+- [ ] Depth of field
+- [ ] Indirect illumination
+- [ ] Textures
+- [ ] Loading general models
+- [ ] Hierarchical spatial structures for geometry storage
+- [ ] Specular materials
+- [ ] Fractals
+- [ ] Optimisations
+- [ ] Global illumination
 
 
 
