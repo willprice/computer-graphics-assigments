@@ -1,8 +1,7 @@
-#include "catch.hpp"
-#include <glm/glm.hpp>
-#include "glm/ext.hpp"
 #include "interpolation.hpp"
-
+#include "catch.hpp"
+#include "glm/ext.hpp"
+#include <glm/glm.hpp>
 
 using namespace std;
 using namespace glm;
@@ -51,7 +50,6 @@ TEST_CASE("Linear interpolation of floats", "[util][interpolation]") {
   }
 }
 
-
 TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
   vector<vec3> actual(10);
   vector<vec3> expected(10);
@@ -66,25 +64,14 @@ TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
     actual.resize(1);
     interpolate(min, max, actual);
 
-
     REQUIRE(expected == actual);
   };
 
-
   SECTION("(0, 0, 0) to (1, 0, 0), with 11 steps") {
-    expected = {
-            vec3(0,0,0),
-            vec3(0.1,0,0),
-            vec3(0.2,0,0),
-            vec3(0.3,0,0),
-            vec3(0.4,0,0),
-            vec3(0.5,0,0),
-            vec3(0.6,0,0),
-            vec3(0.7,0,0),
-            vec3(0.8,0,0),
-            vec3(0.9,0,0),
-            vec3(1,0,0)
-    };
+    expected = {vec3(0, 0, 0),   vec3(0.1, 0, 0), vec3(0.2, 0, 0),
+                vec3(0.3, 0, 0), vec3(0.4, 0, 0), vec3(0.5, 0, 0),
+                vec3(0.6, 0, 0), vec3(0.7, 0, 0), vec3(0.8, 0, 0),
+                vec3(0.9, 0, 0), vec3(1, 0, 0)};
     min = vec3(0, 0, 0);
     max = vec3(1, 0, 0);
     actual.resize(11);
@@ -100,19 +87,10 @@ TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
   };
 
   SECTION("(0, 0, 0) to (0, 1, 0), with 11 steps") {
-    expected = {
-            vec3(0,0,0),
-            vec3(0,0.1,0),
-            vec3(0,0.2,0),
-            vec3(0,0.3,0),
-            vec3(0,0.4,0),
-            vec3(0,0.5,0),
-            vec3(0,0.6,0),
-            vec3(0,0.7,0),
-            vec3(0,0.8,0),
-            vec3(0,0.9,0),
-            vec3(0,1,0)
-    };
+    expected = {vec3(0, 0, 0),   vec3(0, 0.1, 0), vec3(0, 0.2, 0),
+                vec3(0, 0.3, 0), vec3(0, 0.4, 0), vec3(0, 0.5, 0),
+                vec3(0, 0.6, 0), vec3(0, 0.7, 0), vec3(0, 0.8, 0),
+                vec3(0, 0.9, 0), vec3(0, 1, 0)};
     min = vec3(0, 0, 0);
     max = vec3(0, 1, 0);
     actual.resize(11);
@@ -128,19 +106,10 @@ TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
   };
 
   SECTION("(0, 0, 0) to (0, 0, 1), with 11 steps") {
-    expected = {
-            vec3(0,0,0),
-            vec3(0,0,0.1),
-            vec3(0,0,0.2),
-            vec3(0,0,0.3),
-            vec3(0,0,0.4),
-            vec3(0,0,0.5),
-            vec3(0,0,0.6),
-            vec3(0,0,0.7),
-            vec3(0,0,0.8),
-            vec3(0,0,0.9),
-            vec3(0,0,1)
-    };
+    expected = {vec3(0, 0, 0),   vec3(0, 0, 0.1), vec3(0, 0, 0.2),
+                vec3(0, 0, 0.3), vec3(0, 0, 0.4), vec3(0, 0, 0.5),
+                vec3(0, 0, 0.6), vec3(0, 0, 0.7), vec3(0, 0, 0.8),
+                vec3(0, 0, 0.9), vec3(0, 0, 1)};
     min = vec3(0, 0, 0);
     max = vec3(0, 0, 1);
     actual.resize(11);
@@ -156,19 +125,10 @@ TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
   };
 
   SECTION("(0, 0, 0) to (1, 1, 1), with 11 steps") {
-    expected = {
-            vec3(0,0,0),
-            vec3(0.1,0.1,0.1),
-            vec3(0.2,0.2,0.2),
-            vec3(0.3,0.3,0.3),
-            vec3(0.4,0.4,0.4),
-            vec3(0.5,0.5,0.5),
-            vec3(0.6,0.6,0.6),
-            vec3(0.7,0.7,0.7),
-            vec3(0.8,0.8,0.8),
-            vec3(0.9,0.9,0.9),
-            vec3(1,1,1)
-    };
+    expected = {vec3(0, 0, 0),       vec3(0.1, 0.1, 0.1), vec3(0.2, 0.2, 0.2),
+                vec3(0.3, 0.3, 0.3), vec3(0.4, 0.4, 0.4), vec3(0.5, 0.5, 0.5),
+                vec3(0.6, 0.6, 0.6), vec3(0.7, 0.7, 0.7), vec3(0.8, 0.8, 0.8),
+                vec3(0.9, 0.9, 0.9), vec3(1, 1, 1)};
     min = vec3(0, 0, 0);
     max = vec3(1, 1, 1);
     actual.resize(11);
@@ -184,9 +144,7 @@ TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
   };
 
   SECTION("(0, 0, 0) to (1, 1, 1), with 0 steps") {
-    expected = {
-            vec3(0.5,0.5,0.5)
-    };
+    expected = {vec3(0.5, 0.5, 0.5)};
     min = vec3(0, 0, 0);
     max = vec3(1, 1, 1);
     actual.resize(1);
@@ -202,12 +160,8 @@ TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
   };
 
   SECTION("(1, 4, 9.2) to (4, 1, 9.8), with 4 steps") {
-    expected = {
-            vec3(1, 4, 9.2),
-            vec3(2, 3, 9.4),
-            vec3(3, 2, 9.6),
-            vec3(4, 1, 9.8)
-    };
+    expected = {vec3(1, 4, 9.2), vec3(2, 3, 9.4), vec3(3, 2, 9.6),
+                vec3(4, 1, 9.8)};
     min = vec3(1, 4, 9.2);
     max = vec3(4, 1, 9.8);
     actual.resize(4);
@@ -222,5 +176,3 @@ TEST_CASE("Linear interpolation of vec3", "[util][interpolation]") {
     }
   };
 };
-
-

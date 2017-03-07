@@ -4,10 +4,9 @@
 // Author: Carl Henrik Ek
 // Origins: Provided as sample code for a ray tracer in COMS30115
 
-
+#include "triangle.hpp"
 #include <glm/glm.hpp>
 #include <vector>
-#include "triangle.hpp"
 
 namespace cg {
 // Loads the Cornell Box. It is scaled to fill the volume:

@@ -1,6 +1,5 @@
 #include "models/cornell_box.hpp"
 
-
 namespace cg {
 void LoadTestModel(std::vector<Triangle> &triangles) {
   using glm::vec3;

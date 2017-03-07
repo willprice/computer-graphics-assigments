@@ -1,6 +1,6 @@
-#include <ostream>
-#include <glm/glm.hpp>
 #include "debug.hpp"
+#include <glm/glm.hpp>
+#include <ostream>
 
 namespace cg {
 using glm::vec3;

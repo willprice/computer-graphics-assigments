@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
 #include "glm/ext.hpp"
-#include <glm/glm.hpp>
 #include "interpolation.hpp"
+#include <glm/glm.hpp>
 
 using namespace std;
 using namespace glm;

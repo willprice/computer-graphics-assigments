@@ -1,17 +1,17 @@
 #include <SDL.h>
 #include <cmath>
+#include <csignal>
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 #include <iostream>
 #include <map>
 #include <set>
-#include <glm/gtc/constants.hpp>
-#include <csignal>
 
 #include "SDLauxiliary.hpp"
+#include "debug.hpp"
 #include "interpolation.hpp"
 #include "models/cornell_box.hpp"
 #include "triangle.hpp"
-#include "debug.hpp"
 
 using namespace std;
 using namespace cg;
@@ -218,13 +218,15 @@ void interpolate(Pixel start, Pixel end, vector<Pixel> &result) {
   float x_step_size = (end.x - start.x) / float(max(N - 1, 1));
   float y_step_size = (end.y - start.y) / float(max(N - 1, 1));
   float zinv_step_size = (end.zinv - start.zinv) / float(max(N - 1, 1));
-  //Interpolating pos3d linearly with the position divided by the z value.
-  vec3 pos3d_step_size = (end.pos3d * end.zinv - start.pos3d * start.zinv) / float(max(N - 1, 1));
+  // Interpolating pos3d linearly with the position divided by the z value.
+  vec3 pos3d_step_size =
+      (end.pos3d * end.zinv - start.pos3d * start.zinv) / float(max(N - 1, 1));
   for (size_t i = 0; i < result.size(); i++) {
     result[i].x = glm::round(start.x + x_step_size * i);
     result[i].y = glm::round(start.y + y_step_size * i);
     result[i].zinv = start.zinv + zinv_step_size * i;
-    result[i].pos3d = (start.pos3d * start.zinv + pos3d_step_size * float(i)) / result[i].zinv;
+    result[i].pos3d = (start.pos3d * start.zinv + pos3d_step_size * float(i)) /
+                      result[i].zinv;
   }
 }
 

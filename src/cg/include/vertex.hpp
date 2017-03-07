@@ -5,14 +5,12 @@
 class Vertex {
 public:
   glm::vec3 position;
-  glm::vec3 normal; //NOTE: Not currently used but can be for an extension
+  glm::vec3 normal; // NOTE: Not currently used but can be for an extension
 
   Vertex() {}
   Vertex(glm::vec3 position) : position(position) {}
 
-  bool operator==(const Vertex& other) {
-    return position == other.position;
-  }
+  bool operator==(const Vertex &other) { return position == other.position; }
 };
 
-#endif //VERTEX_HPP
+#endif // VERTEX_HPP
