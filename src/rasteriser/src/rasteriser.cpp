@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <glm/gtc/constants.hpp>
+#include <csignal>
 
 #include "SDLauxiliary.hpp"
 #include "interpolation.hpp"
@@ -121,6 +122,7 @@ void setAdd(vector<Triangle> &triangles, Triangle &triangle);
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, false);
   TIME = SDL_GetTicks(); // Set start value for timer.
+  signal(SIGINT, SIG_DFL);
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();

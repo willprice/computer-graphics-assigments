@@ -2,6 +2,7 @@
 #include <cmath>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <csignal>
 #include "omp.h"
 
 #include "interpolation.hpp"
@@ -90,11 +91,10 @@ int main(int argc, char* argv[] )
 {
   screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
   TIME = SDL_GetTicks();	// Set start value for timer.
+  signal(SIGINT, SIG_DFL);
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
-
-  SDL_WM_GrabInput(SDL_GRAB_ON);
 
   while( NoQuitMessageSDL() )
   {
