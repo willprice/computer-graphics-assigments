@@ -26,15 +26,12 @@ const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
 const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
-const float WORLD_DEPTH = 2;
 const float FOCAL_LENGTH = 2;
 
 static const float TRANSLATION_STEP_SIZE = 0.1;
-static const float ROTATION_STEP_SIZE = 0.05;
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
-vector<Intersection> RAY_INTERSECTIONS;
 
 SDL_Surface* screen;
 int TIME;
@@ -61,30 +58,16 @@ vec3 INDIRECT_LIGHT = 0.5f * vec3(1,1,1);
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
-float randomProbability() {
-  return float(rand()) / float(RAND_MAX);
-}
-
-
 void Update();
 void Draw();
-
 void updateCameraRotation();
-
 void updateCameraParameters(const Uint8 *keystate);
-
 void updateCameraPosition(const Uint8 *keystate);
-
 void updateCameraRotation(const Uint8 *keystate);
-
 void updateLightPosition(const Uint8 *keystate);
-
 bool closest_intersection(vec3 start, vec3 direction, const vector<Triangle>& triangles, Intersection& closestIntersection);
-
 float computeRenderTime();
-
 void calculateScreenPixelCentres();
-
 vec3 directLight(const Intersection &intersection);
 
 int main(int argc, char* argv[] )
@@ -95,6 +78,11 @@ int main(int argc, char* argv[] )
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
+
+  if (MOUSE_CONTROLS_ON) {
+    SDL_WM_GrabInput(SDL_GRAB_ON);
+    SDL_WarpMouse(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+  }
 
   while( NoQuitMessageSDL() )
   {
