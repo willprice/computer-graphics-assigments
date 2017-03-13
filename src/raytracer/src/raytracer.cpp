@@ -72,6 +72,10 @@ float computeRenderTime();
 void calculateScreenPixelCentres();
 vec3 directLight(const Intersection &intersection);
 
+vec3 castRay(const Triangle &triangle, size_t depth);
+
+void createCoordinateSystem(const vec3 &basis_1, vec3 basis_2, vec3 basis_3);
+
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT);
   TIME = SDL_GetTicks(); // Set start value for timer.
@@ -128,13 +132,14 @@ void Draw() {
           closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
                                potential_occlusion);
           Triangle triangle = triangles[closestIntersection.triangleIndex];
+          vec3 indirect_light = castRay(triangle, 3);
           if (potential_occlusion.triangleIndex ==
               closestIntersection.triangleIndex) {
             vec3 illumination =
-                directLight(closestIntersection) + INDIRECT_LIGHT;
+                directLight(closestIntersection) + indirect_light;
             reflected_light = triangle.color * illumination;
           } else {
-            reflected_light = triangle.color * INDIRECT_LIGHT;
+            reflected_light = triangle.color * indirect_light;
           }
           PutPixelSDL(screen, x, y, reflected_light);
         }
@@ -142,6 +147,40 @@ void Draw() {
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
+}
+
+vec3 castRay(const Triangle &triangle, size_t depth) {
+  vec3 indirect_light = {0, 0, 0};
+  size_t ray_count = 16;
+  float rotationMatrix[2][2] = {{triangle.normal.y, -triangle.normal.x},
+                                        {triangle.normal.x, triangle.normal.y}};
+  for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
+    float theta = drand48() * M_PI;
+    float phi = drand48() * M_2_PI;
+    float cosTheta = cos(theta);
+    float sinTheta = sin(theta);
+    vec3 sample(sinTheta * cos(phi), cosTheta, sinTheta * sin(phi));
+    const vec3& basis_1 = triangle.normal;
+    vec3 basis_2, basis_3;
+    createCoordinateSystem(basis_1, basis_2, basis_3);
+    vec3 sampleWorld(
+            sample.x * basis_3.x + sample.y * basis_1.x + sample.z * basis_2.x,
+            sample.x * basis_3.y + sample.y * basis_1.y + sample.z * basis_2.y,
+            sample.x * basis_3.z + sample.y * basis_1.z + sample.z * basis_2.z
+    );
+    indirect_light += 0; // TODO: Actually implement (see scratch a pixel global illumination chapter 3)
+  }
+  return indirect_light;
+}
+
+/** Taken from scratchapixel */
+void createCoordinateSystem(const vec3 &basis_1, vec3 basis_2, vec3 basis_3) {
+  if (std::fabs(basis_1.x) > std::fabs(basis_2.y)) {
+    basis_2 = vec3(basis_1.z, 0, -basis_1.x) / sqrtf(basis_1.x * basis_1.x + basis_1.z * basis_1.z);
+  } else {
+    basis_2 = vec3(0, -basis_1.z, basis_1.y) / sqrtf(basis_1.y * basis_1.y + basis_1.z * basis_1.z);
+  }
+  basis_3 = glm::cross(basis_1, basis_2);
 }
 
 vec3 directLight(const Intersection &intersection) {
