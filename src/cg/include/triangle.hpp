@@ -13,6 +13,7 @@ public:
   Vertex v2;
   glm::vec3 normal;
   glm::vec3 color;
+  float reflectance = 1;
 
   Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color);
   bool operator==(const Triangle &other);

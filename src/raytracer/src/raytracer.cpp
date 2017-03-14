@@ -1,4 +1,3 @@
-#include "omp.h"
 #include <SDL.h>
 #include <cmath>
 #include <csignal>
@@ -55,6 +54,8 @@ vec3 LIGHT_COLOR = 14.f * vec3(1, 1, 1);
 
 vec3 INDIRECT_LIGHT = 0.5f * vec3(1, 1, 1);
 
+const size_t MAX_DEPTH = 2;
+
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
 
@@ -72,7 +73,7 @@ float computeRenderTime();
 void calculateScreenPixelCentres();
 vec3 directLight(const Intersection &intersection);
 
-vec3 castRay(const Triangle &triangle, size_t depth);
+vec3 castRay(const Intersection& closestIntersection, size_t depth);
 
 void createCoordinateSystem(const vec3 &basis_1, vec3 basis_2, vec3 basis_3);
 
@@ -114,44 +115,44 @@ void Draw() {
     SDL_UnlockSurface(screen);
 
   updateCameraRotation();
-
-#pragma omp parallel
-  {
-#pragma omp for
-    for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
-      for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
-        vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
-                          FOCAL_LENGTH);
-        Intersection closestIntersection;
-        if (closest_intersection(CAMERA_CENTRE, CAMERA_ROTATION * pixel_centre,
-                                 triangles, closestIntersection)) {
-          vec3 reflected_light(0, 0, 0);
-          vec3 light_to_previous =
-              -LIGHT_POSITION + closestIntersection.position;
-          Intersection potential_occlusion;
-          closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
-                               potential_occlusion);
-          Triangle triangle = triangles[closestIntersection.triangleIndex];
-          vec3 indirect_light = castRay(triangle, 3);
-          if (potential_occlusion.triangleIndex ==
-              closestIntersection.triangleIndex) {
-            vec3 illumination =
-                directLight(closestIntersection) + indirect_light;
-            reflected_light = triangle.color * illumination;
-          } else {
-            reflected_light = triangle.color * indirect_light;
-          }
-          PutPixelSDL(screen, x, y, reflected_light);
+  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
+    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
+      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
+                        FOCAL_LENGTH);
+      Intersection closestIntersection;
+      if (closest_intersection(CAMERA_CENTRE, CAMERA_ROTATION * pixel_centre,
+                               triangles, closestIntersection)) {
+        vec3 reflected_light(0, 0, 0);
+        vec3 light_to_previous =
+            -LIGHT_POSITION + closestIntersection.position;
+        Intersection potential_occlusion;
+        closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
+                             potential_occlusion);
+        Triangle triangle = triangles[closestIntersection.triangleIndex];
+        vec3 indirect_light = castRay(closestIntersection, 0);
+        if (potential_occlusion.triangleIndex ==
+            closestIntersection.triangleIndex) {
+          vec3 illumination =
+              directLight(closestIntersection) + indirect_light;
+          reflected_light = triangle.color * illumination;
+        } else {
+          reflected_light = triangle.color * indirect_light;
         }
+        PutPixelSDL(screen, x, y, reflected_light);
       }
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
 
-vec3 castRay(const Triangle &triangle, size_t depth) {
+vec3 castRay(const Intersection& closestIntersection, size_t depth) {
+  if (depth >= MAX_DEPTH) {
+    return {0, 0, 0};
+  }
+
+  Triangle triangle = triangles[closestIntersection.triangleIndex];
   vec3 indirect_light = {0, 0, 0};
-  size_t ray_count = 16;
+  size_t ray_count = 2;
   float rotationMatrix[2][2] = {{triangle.normal.y, -triangle.normal.x},
                                         {triangle.normal.x, triangle.normal.y}};
   for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
@@ -168,9 +169,15 @@ vec3 castRay(const Triangle &triangle, size_t depth) {
             sample.x * basis_3.y + sample.y * basis_1.y + sample.z * basis_2.y,
             sample.x * basis_3.z + sample.y * basis_1.z + sample.z * basis_2.z
     );
-    indirect_light += 0; // TODO: Actually implement (see scratch a pixel global illumination chapter 3)
+    Intersection diffuseRayIntersection;
+    closest_intersection(closestIntersection.position, sampleWorld, triangles, diffuseRayIntersection);
+    indirect_light += cosTheta * castRay(diffuseRayIntersection, depth + 1);
   }
-  return indirect_light;
+  indirect_light /= ray_count;
+
+  vec3 indirect_light_colour = indirect_light * triangle.color * triangle.reflectance;
+
+  return indirect_light_colour;
 }
 
 /** Taken from scratchapixel */
