@@ -73,7 +73,7 @@ float computeRenderTime();
 void calculateScreenPixelCentres();
 vec3 directLight(const Intersection &intersection);
 
-vec3 castRay(const Intersection& closestIntersection, size_t depth);
+vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth);
 
 void createCoordinateSystem(const vec3 &basis_1, vec3 basis_2, vec3 basis_3);
 
@@ -119,66 +119,62 @@ void Draw() {
     for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
       vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
                         FOCAL_LENGTH);
-      Intersection closestIntersection;
-      if (closest_intersection(CAMERA_CENTRE, CAMERA_ROTATION * pixel_centre,
-                               triangles, closestIntersection)) {
-        vec3 reflected_light(0, 0, 0);
-        vec3 light_to_previous =
-            -LIGHT_POSITION + closestIntersection.position;
-        Intersection potential_occlusion;
-        closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
-                             potential_occlusion);
-        Triangle triangle = triangles[closestIntersection.triangleIndex];
-        vec3 indirect_light = castRay(closestIntersection, 0);
-        if (potential_occlusion.triangleIndex ==
-            closestIntersection.triangleIndex) {
-          vec3 illumination =
-              directLight(closestIntersection) + indirect_light;
-          reflected_light = triangle.color * illumination;
-        } else {
-          reflected_light = triangle.color * indirect_light;
-        }
-        PutPixelSDL(screen, x, y, reflected_light);
-      }
+      vec3 origin = CAMERA_CENTRE;
+      vec3 direction = CAMERA_ROTATION * pixel_centre;
+      vec3 reflected_light = castRay(origin, direction, 0);
+      PutPixelSDL(screen, x, y, reflected_light);
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
 
-vec3 castRay(const Intersection& closestIntersection, size_t depth) {
-  if (depth >= MAX_DEPTH) {
+vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
+  vec3 direct_light = {0, 0, 0};
+  Intersection closestIntersection;
+  if (closest_intersection(origin, direction,
+                           triangles, closestIntersection)) {
+    vec3 light_to_previous =
+            -LIGHT_POSITION + closestIntersection.position;
+    Intersection potential_occlusion;
+    closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
+                         potential_occlusion);
+    Triangle triangle = triangles[closestIntersection.triangleIndex];
+    if (potential_occlusion.triangleIndex ==
+        closestIntersection.triangleIndex) {
+      direct_light = directLight(closestIntersection);
+    }
+    if (depth >= MAX_DEPTH) {
+      return direct_light;
+    }
+
+    vec3 indirect_light = {0, 0, 0};
+    size_t ray_count = 2;
+    for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
+      float theta = drand48() * M_PI;
+      float phi = drand48() * M_2_PI;
+      float cosTheta = cos(theta);
+      float sinTheta = sin(theta);
+      vec3 sample(sinTheta * cos(phi), cosTheta, sinTheta * sin(phi));
+      const vec3 &basis_1 = triangle.normal;
+      vec3 basis_2, basis_3;
+      createCoordinateSystem(basis_1, basis_2, basis_3);
+      vec3 sampleWorld(
+              sample.x * basis_3.x + sample.y * basis_1.x + sample.z * basis_2.x,
+              sample.x * basis_3.y + sample.y * basis_1.y + sample.z * basis_2.y,
+              sample.x * basis_3.z + sample.y * basis_1.z + sample.z * basis_2.z
+      );
+      indirect_light += cosTheta * castRay(closestIntersection.position, sampleWorld, depth + 1);
+    }
+    indirect_light /= ray_count;
+
+
+    vec3 light = triangle.reflectance * (triangle.color * direct_light + indirect_light);
+    return light;
+  } else {
     return {0, 0, 0};
   }
-
-  Triangle triangle = triangles[closestIntersection.triangleIndex];
-  vec3 indirect_light = {0, 0, 0};
-  size_t ray_count = 2;
-  float rotationMatrix[2][2] = {{triangle.normal.y, -triangle.normal.x},
-                                        {triangle.normal.x, triangle.normal.y}};
-  for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
-    float theta = drand48() * M_PI;
-    float phi = drand48() * M_2_PI;
-    float cosTheta = cos(theta);
-    float sinTheta = sin(theta);
-    vec3 sample(sinTheta * cos(phi), cosTheta, sinTheta * sin(phi));
-    const vec3& basis_1 = triangle.normal;
-    vec3 basis_2, basis_3;
-    createCoordinateSystem(basis_1, basis_2, basis_3);
-    vec3 sampleWorld(
-            sample.x * basis_3.x + sample.y * basis_1.x + sample.z * basis_2.x,
-            sample.x * basis_3.y + sample.y * basis_1.y + sample.z * basis_2.y,
-            sample.x * basis_3.z + sample.y * basis_1.z + sample.z * basis_2.z
-    );
-    Intersection diffuseRayIntersection;
-    closest_intersection(closestIntersection.position, sampleWorld, triangles, diffuseRayIntersection);
-    indirect_light += cosTheta * castRay(diffuseRayIntersection, depth + 1);
-  }
-  indirect_light /= ray_count;
-
-  vec3 indirect_light_colour = indirect_light * triangle.color * triangle.reflectance;
-
-  return indirect_light_colour;
 }
+
 
 /** Taken from scratchapixel */
 void createCoordinateSystem(const vec3 &basis_1, vec3 basis_2, vec3 basis_3) {
