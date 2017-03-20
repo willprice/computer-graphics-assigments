@@ -4,7 +4,6 @@
 #include "SDL.h"
 #include <glm/glm.hpp>
 #include <iostream>
-
 namespace cg {
 // Initializes SDL (video and timer). SDL creates a window where you can draw.
 // A pointer to this SDL_Surface is returned. After calling this function
@@ -25,6 +24,7 @@ bool NoQuitMessageSDL();
 //     SDL_UnlockSurface( surface );
 // SDL_UpdateRect( surface, 0, 0, 0, 0 );
 void PutPixelSDL(SDL_Surface *surface, int x, int y, glm::vec3 color);
+glm::vec3 GetPixelSDL(SDL_Surface *surface, int x, int y);
 }
 
 #endif

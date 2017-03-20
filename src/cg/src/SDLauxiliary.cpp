@@ -1,4 +1,7 @@
+#include <glm/vec3.hpp>
 #include "SDLauxiliary.hpp"
+
+using glm::vec3;
 
 namespace cg {
 SDL_Surface *InitializeSDL(int width, int height, bool fullscreen) {
@@ -44,5 +47,42 @@ void PutPixelSDL(SDL_Surface *surface, int x, int y, glm::vec3 color) {
 
   Uint32 *p = (Uint32 *)surface->pixels + y * surface->pitch / 4 + x;
   *p = SDL_MapRGB(surface->format, r, g, b);
+}
+
+vec3 GetPixelSDL(SDL_Surface *surface, int x, int y)
+{
+  int bytes_per_pixel = surface->format->BytesPerPixel;
+  /* Here p is the address to the pixel we want to retrieve */
+  Uint8 *p = (Uint8 *)surface->pixels + y * surface->pitch + x * bytes_per_pixel;
+
+  Uint32 sdl_pixel_value;
+  vec3 pixel_value;
+  switch(bytes_per_pixel) {
+    case 1:
+      sdl_pixel_value = *p;
+      break;
+
+    case 2:
+      sdl_pixel_value = *(Uint16 *)p;
+      break;
+
+    case 3:
+      if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
+        sdl_pixel_value = p[0] << 16 | p[1] << 8 | p[2];
+      else
+        sdl_pixel_value = p[0] | p[1] << 8 | p[2] << 16;
+
+    case 4:
+      sdl_pixel_value = *(Uint32 *)p;
+      break;
+    default:
+      sdl_pixel_value = 0;       /* shouldn't happen, but avoids warnings  - Nice one SDL guys!*/
+  }
+  uint8_t r, g, b;
+  SDL_GetRGB(sdl_pixel_value, surface->format, &r, &g, &b);
+  pixel_value.r = r/255.f;
+  pixel_value.g = g/255.f;
+  pixel_value.b = b/255.f;
+  return pixel_value;
 }
 };

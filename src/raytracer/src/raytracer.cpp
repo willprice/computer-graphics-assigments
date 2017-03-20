@@ -27,7 +27,11 @@ const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
 const float FOCAL_LENGTH = 2;
 
+int RENDER_COUNT = 0;
+
 static const float TRANSLATION_STEP_SIZE = 0.1;
+
+vec3 ACCUMULATION_BUFFER[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
@@ -106,15 +110,12 @@ void Update() {
 }
 
 void Draw() {
-  SDL_FillRect(screen, 0, 0);
-
-  if (SDL_MUSTLOCK(screen))
+  if (SDL_MUSTLOCK(screen)) {
     SDL_LockSurface(screen);
-
-  if (SDL_MUSTLOCK(screen))
-    SDL_UnlockSurface(screen);
+  }
 
   updateCameraRotation();
+  RENDER_COUNT++;
   for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
     for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
       vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
@@ -122,10 +123,20 @@ void Draw() {
       vec3 origin = CAMERA_CENTRE;
       vec3 direction = CAMERA_ROTATION * pixel_centre;
       vec3 reflected_light = castRay(origin, direction, 0);
-      PutPixelSDL(screen, x, y, reflected_light);
+      vec3 previous_pixel_value = GetPixelSDL(screen, x, y);
+      PutPixelSDL(screen, x, y, (1 / ((float) RENDER_COUNT)) * (previous_pixel_value * ((float) RENDER_COUNT - 1) + reflected_light));
+      //if (RENDER_COUNT == 1) {
+      //  PutPixelSDL(screen, x, y, reflected_light);
+      //} else {
+      //  PutPixelSDL(screen, x, y, previous_pixel_value);
+      //}
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
+
+  if (SDL_MUSTLOCK(screen)) {
+    SDL_UnlockSurface(screen);
+  }
 }
 
 vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
@@ -148,7 +159,7 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
     }
 
     vec3 indirect_light = {0, 0, 0};
-    size_t ray_count = 2;
+    size_t ray_count = 3;
     for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
       float theta = drand48() * M_PI;
       float phi = drand48() * M_2_PI;
@@ -163,7 +174,7 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
               sample.x * basis_3.y + sample.y * basis_1.y + sample.z * basis_2.y,
               sample.x * basis_3.z + sample.y * basis_1.z + sample.z * basis_2.z
       );
-      indirect_light += cosTheta * castRay(closestIntersection.position, sampleWorld, depth + 1);
+      indirect_light += cosTheta * castRay(closestIntersection.position + 0.00001f * sampleWorld, sampleWorld, depth + 1);
     }
     indirect_light /= ray_count;
 
