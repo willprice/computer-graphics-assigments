@@ -3,6 +3,7 @@
 #include <csignal>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <glm/ext.hpp>
 
 #include "SDLauxiliary.hpp"
 #include "interpolation.hpp"
@@ -79,7 +80,7 @@ vec3 directLight(const Intersection &intersection);
 
 vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth);
 
-void createCoordinateSystem(const vec3 &basis_1, vec3 basis_2, vec3 basis_3);
+void createCoordinateSystem(const vec3 &basis_1, vec3 &basis_2, vec3 &basis_3);
 
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -161,11 +162,11 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
     vec3 indirect_light = {0, 0, 0};
     size_t ray_count = 3;
     for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
-      float theta = drand48() * M_PI;
-      float phi = drand48() * M_2_PI;
-      float cosTheta = cos(theta);
-      float sinTheta = sin(theta);
-      vec3 sample(sinTheta * cos(phi), cosTheta, sinTheta * sin(phi));
+      float cosTheta = drand48();
+      float sinTheta = sqrt(1 - cosTheta * cosTheta);
+      float phi = drand48() * 2 * M_PI;
+      vec3 sample(sinTheta*cos(phi), cosTheta, sinTheta*sin(phi));
+
       const vec3 &basis_1 = triangle.normal;
       vec3 basis_2, basis_3;
       createCoordinateSystem(basis_1, basis_2, basis_3);
@@ -188,7 +189,7 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
 
 
 /** Taken from scratchapixel */
-void createCoordinateSystem(const vec3 &basis_1, vec3 basis_2, vec3 basis_3) {
+void createCoordinateSystem(const vec3 &basis_1, vec3 &basis_2, vec3 &basis_3) {
   if (std::fabs(basis_1.x) > std::fabs(basis_2.y)) {
     basis_2 = vec3(basis_1.z, 0, -basis_1.x) / sqrtf(basis_1.x * basis_1.x + basis_1.z * basis_1.z);
   } else {
