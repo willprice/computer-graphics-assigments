@@ -59,7 +59,7 @@ vec3 LIGHT_COLOR = 14.f * vec3(1, 1, 1);
 
 vec3 INDIRECT_LIGHT = 0.5f * vec3(1, 1, 1);
 
-const size_t MAX_DEPTH = 2;
+const size_t MAX_DEPTH = 5;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
@@ -155,7 +155,10 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
         closestIntersection.triangleIndex) {
       direct_light = directLight(closestIntersection);
     }
-    if (depth >= MAX_DEPTH) {
+
+    float continueCastProbability = 0.5;
+
+    if (depth > 0 && (depth >= MAX_DEPTH || continueCastProbability < drand48())) {
       return direct_light;
     }
 
@@ -170,6 +173,7 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
       const vec3 &basis_1 = triangle.normal;
       vec3 basis_2, basis_3;
       createCoordinateSystem(basis_1, basis_2, basis_3);
+
       vec3 sampleWorld(
               sample.x * basis_3.x + sample.y * basis_1.x + sample.z * basis_2.x,
               sample.x * basis_3.y + sample.y * basis_1.y + sample.z * basis_2.y,
@@ -180,7 +184,7 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
     indirect_light /= ray_count;
 
 
-    vec3 light = triangle.reflectance * (triangle.color * direct_light + indirect_light);
+    vec3 light = triangle.reflectance * (triangle.color * (direct_light + 2.5f * indirect_light));
     return light;
   } else {
     return {0, 0, 0};
