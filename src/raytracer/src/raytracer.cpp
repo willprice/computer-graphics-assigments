@@ -59,7 +59,9 @@ vec3 LIGHT_COLOR = 14.f * vec3(1, 1, 1);
 
 vec3 INDIRECT_LIGHT = 0.5f * vec3(1, 1, 1);
 
-const size_t MAX_DEPTH = 5;
+const size_t MAX_DEPTH = 3;
+
+const size_t PIXEL_RAY_COUNT = 2;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
@@ -117,20 +119,24 @@ void Draw() {
 
   updateCameraRotation();
   RENDER_COUNT++;
+
+  float pixel_width = screen_pixel_centres_y[1] - screen_pixel_centres_y[0];
+  float pixel_height = screen_pixel_centres_x[1] - screen_pixel_centres_x[0];
+
   for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
     for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
       vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
                         FOCAL_LENGTH);
       vec3 origin = CAMERA_CENTRE;
-      vec3 direction = CAMERA_ROTATION * pixel_centre;
-      vec3 reflected_light = castRay(origin, direction, 0);
+      vec3 reflected_light;
+      for (size_t pixel_ray_index = 0; pixel_ray_index < PIXEL_RAY_COUNT; pixel_ray_index++) {
+        vec3 jitter = {(drand48() - 0.5f) * pixel_height, (drand48() - 0.5f) * pixel_width, 0};
+        vec3 direction = CAMERA_ROTATION * (pixel_centre + jitter);
+        reflected_light += castRay(origin, direction, 0);
+      }
+      reflected_light /= PIXEL_RAY_COUNT;
       vec3 previous_pixel_value = GetPixelSDL(screen, x, y);
       PutPixelSDL(screen, x, y, (1 / ((float) RENDER_COUNT)) * (previous_pixel_value * ((float) RENDER_COUNT - 1) + reflected_light));
-      //if (RENDER_COUNT == 1) {
-      //  PutPixelSDL(screen, x, y, reflected_light);
-      //} else {
-      //  PutPixelSDL(screen, x, y, previous_pixel_value);
-      //}
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
@@ -156,7 +162,7 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
       direct_light = directLight(closestIntersection);
     }
 
-    float continueCastProbability = 0.5;
+    float continueCastProbability = 0.65;
 
     if (depth > 0 && (depth >= MAX_DEPTH || continueCastProbability < drand48())) {
       return direct_light;
