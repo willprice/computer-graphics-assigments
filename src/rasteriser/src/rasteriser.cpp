@@ -6,6 +6,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <glm/ext.hpp>
 
 #include "SDLauxiliary.hpp"
 #include "debug.hpp"
@@ -17,8 +18,16 @@ using namespace std;
 using namespace cg;
 using glm::vec2;
 using glm::vec3;
+using glm::vec4;
 using glm::ivec2;
 using glm::mat3;
+using glm::mat4;
+
+
+// IMPORTANT: Abbreviations:
+// CF = camera coordinate frame
+// WF = world coordinate frame
+// NDC = normalised device coordinates
 
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES */
@@ -33,6 +42,25 @@ const float FOCAL_LENGTH = 2;
 
 static const float TRANSLATION_STEP_SIZE = 0.01;
 
+// z-coordinate of Far plane of viewing frustrum
+const float f = -20;
+// z-coordinate of Near plane of viewing frustrum
+const float n = -FOCAL_LENGTH;
+// x-coordinate of Top right of near plane of the viewing frustum
+const float t = 1;
+// y-coordinate of top Right of near plane of the viewing frustum
+const float r = 1;
+// y-coordinate of bottom Left of near plane of the viewing frustum
+const float l = -1;
+// x-coordinate of Bottom left of near plane of the viewing frustum
+const float b = -1;
+float _CF_TO_CLIP_SPACE_TRANSFORM_ARRAY[16] = {
+        2 * n / (r - l), 0, 0, 0,
+        0, 2 * n / (t - b), 0, 0,
+        (r + l)/(r - l), (t + b)/(t - b), - (f + n)/(f - n), -1,
+        0, 0, - (2 * f * n) / (f - n), 0
+};
+mat4 CF_TO_CLIP_SPACE_TRANSFORM = glm::make_mat4(_CF_TO_CLIP_SPACE_TRANSFORM_ARRAY);
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
 
@@ -73,6 +101,14 @@ float currentReflectance;
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
 
+std::ostream & operator<<(std::ostream &o, vec4 &v) {
+  o << "(" << v.x << ", "
+           << v.y << ", "
+           << v.z << ", "
+           << v.w << ")";
+  return o;
+}
+
 void Update();
 void Draw();
 void updateCameraRotation();
@@ -97,6 +133,10 @@ void computeVertexNormals(vector<Triangle> &triangles);
 void updateVertexNormal(const set<Triangle *> &triangles, const Vertex &vertex,
                         vec3 normal);
 void setAdd(vector<Triangle> &triangles, Triangle &triangle);
+
+void clip(const vector<Vertex> &vertices);
+
+vec3 worldToCamera(const vec3 &vertexWF);
 
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, false);
@@ -212,6 +252,7 @@ void interpolate(Pixel start, Pixel end, vector<Pixel> &result) {
 void drawPolygon(const vector<Vertex> &vertices) {
   int V = vertices.size();
   vector<Pixel> vertexPixels(V);
+  clip(vertices);
   for (int i = 0; i < V; ++i) {
     vertexShader(vertices[i], vertexPixels[i]);
   }
@@ -220,6 +261,46 @@ void drawPolygon(const vector<Vertex> &vertices) {
   computeRows(vertexPixels, leftPixels, rightPixels);
   drawRows(leftPixels, rightPixels);
 }
+
+vec4 homogenise(const vec3& vec) {
+  vec4 homogenisedVec;
+  homogenisedVec.x = vec.x;
+  homogenisedVec.y = vec.y;
+  homogenisedVec.z = vec.z;
+  homogenisedVec.w = 1;
+  return homogenisedVec;
+}
+
+vec4 perspectiveDivision(const vec4& vec) {
+  vec4 vertexNDC;
+  vertexNDC.x = vec.x / vec.w;
+  vertexNDC.y = vec.y / vec.w;
+  vertexNDC.z = vec.z / vec.w;
+  vertexNDC.w = 1;
+  return vertexNDC;
+}
+
+void clip(const std::vector<Vertex> &vertices) {
+  vector<vec4> verticesClipSpace;
+  for (auto &vertex : vertices) {
+    vec3 vertexCF = worldToCamera(vertex.position);
+    vec4 vertexClipSpace = CF_TO_CLIP_SPACE_TRANSFORM * homogenise(vertexCF);
+    vec4 vertexNDC = perspectiveDivision(vertexClipSpace);
+    if (vertex.position == vec3(1, -1, 1)) {
+      cout << "World:  " << vertex.position << endl;
+      cout << "Camera: " << vertexCF << endl;
+      cout << "Clip:   " << vertexClipSpace << endl;
+      cout << "NDC:   " << vertexNDC << endl;
+    }
+    verticesClipSpace.push_back(vertexClipSpace);
+  }
+  
+}
+
+vec3 worldToCamera(const vec3 &vertexWF) {
+  return (vertexWF - CAMERA_CENTRE) * CAMERA_ROTATION;
+}
+
 
 void drawRows(const vector<Pixel> &leftPixels,
               const vector<Pixel> &rightPixels) {
