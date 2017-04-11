@@ -1,4 +1,4 @@
-#include <glm/vec3.hpp>
+#include <glm/glm.hpp>
 #include "SDLauxiliary.hpp"
 
 using glm::vec3;
