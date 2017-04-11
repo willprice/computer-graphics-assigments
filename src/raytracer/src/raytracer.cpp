@@ -84,8 +84,6 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth);
 
 void createCoordinateSystem(const vec3 &basis_1, vec3 &basis_2, vec3 &basis_3);
 
-int pixel_similarity(vector<int> xs, vector<int> ys, vec3 pixel_colours[SCREEN_HEIGHT][SCREEN_WIDTH], vec3 &average_colour);
-
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT);
   TIME = SDL_GetTicks(); // Set start value for timer.
@@ -124,9 +122,6 @@ void Draw() {
 
   float pixel_width = screen_pixel_centres_y[1] - screen_pixel_centres_y[0];
   float pixel_height = screen_pixel_centres_x[1] - screen_pixel_centres_x[0];
-  vec3 pixel_colours[SCREEN_HEIGHT][SCREEN_WIDTH];
-
-  vec3 overall_average_colour = {0, 0, 0};
 
   for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
     for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
@@ -141,30 +136,7 @@ void Draw() {
       }
       reflected_light /= PIXEL_RAY_COUNT;
       vec3 previous_pixel_value = GetPixelSDL(screen, x, y);
-      vec3 new_colour = (1 / ((float) RENDER_COUNT)) * (previous_pixel_value * ((float) RENDER_COUNT - 1) + reflected_light);
-
-      pixel_colours[y][x] = new_colour;
-    }
-  }
-  vec3 new_colours[SCREEN_HEIGHT][SCREEN_WIDTH];
-  for (int y = 1; y < screen_pixel_centres_y.size() - 1; y++) {
-    for (int x = 1; x < screen_pixel_centres_x.size() - 1; x++) {
-      vector<int> neighbour_position_x = {x-1, x+1, x, x}; //{x-1, x+1, x, x}
-      vector<int> neighbour_position_y = {y, y, y-1, y+1}; //{y, y, y-1, y+1}
-      vec3 average_colour = {0, 0, 0};
-      int neighbour_similarity =  pixel_similarity(neighbour_position_x, neighbour_position_y, pixel_colours, average_colour);
-      //vector<int> position_x = {x};
-      //vector<int> position_y = {y, y, y-1, y+1};
-      //int this_pixel_difference =
-      new_colours[y][x] = average_colour;
-      if ((neighbour_similarity < 5)) {
-        // cout << "X: " << pixel_colours[y][x].x << endl;
-        // cout << "Y: " << pixel_colours[y][x].y << endl;
-        // cout << "Z: " << pixel_colours[y][x].z << endl;
-        //pixel_colours[y][x] = pixel_colours[y+1][x];
-      }
-      PutPixelSDL(screen, x, y, pixel_colours[y][x]);
-
+      PutPixelSDL(screen, x, y, (1 / ((float) RENDER_COUNT)) * (previous_pixel_value * ((float) RENDER_COUNT - 1) + reflected_light));
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
@@ -172,39 +144,6 @@ void Draw() {
   if (SDL_MUSTLOCK(screen)) {
     SDL_UnlockSurface(screen);
   }
-}
-
-int pixel_similarity(vector<int> xs, vector<int> ys, vec3 pixel_colours[SCREEN_HEIGHT][SCREEN_WIDTH], vec3 &average_colour) {
-  vec3 min = {INT_MAX, INT_MAX, INT_MAX};
-  vec3 max = {INT_MIN, INT_MIN, INT_MIN};
-  for (int x : xs) {
-    for (int y : ys) {
-      average_colour.x += pixel_colours[y][x].x;
-      average_colour.y += pixel_colours[y][x].y;
-      average_colour.z += pixel_colours[y][x].z;
-      if (pixel_colours[y][x].x < min.x) {
-        min.x = pixel_colours[y][x].x;
-      } else if (pixel_colours[y][x].x > max.x) {
-        max.x = pixel_colours[y][x].x;
-      }
-
-      if (pixel_colours[y][x].y < min.y) {
-        min.y = pixel_colours[y][x].y;
-      } else if (pixel_colours[y][x].y > max.y) {
-        max.y = pixel_colours[y][x].y;
-      }
-
-      if (pixel_colours[y][x].z < min.z) {
-        min.z = pixel_colours[y][x].z;
-      } else if (pixel_colours[y][x].z > max.z) {
-        max.z = pixel_colours[y][x].z;
-      }
-    }
-  }
-  average_colour.x /= 3.0f;
-  average_colour.y /= 3.0f;
-  average_colour.z /= 3.0f;
-  return (max.x - min.x + max.y - min.y + max.z - min.z);
 }
 
 vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
@@ -230,7 +169,7 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
     }
 
     vec3 indirect_light = {0, 0, 0};
-    size_t ray_count = 6;
+    size_t ray_count = 3;
     for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
       float cosTheta = drand48();
       float sinTheta = sqrt(1 - cosTheta * cosTheta);
