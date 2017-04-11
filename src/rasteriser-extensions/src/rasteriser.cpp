@@ -151,6 +151,7 @@ int main(int argc, char *argv[]) {
     Update();
     Draw();
   }
+  SDL_SaveBMP(screen, "rasteriser-extensions-output.bmp");
 
   return 0;
 }

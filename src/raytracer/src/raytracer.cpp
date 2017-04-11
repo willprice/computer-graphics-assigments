@@ -89,6 +89,7 @@ int main(int argc, char *argv[]) {
     Update();
     Draw();
   }
+  SDL_SaveBMP(screen, "raytracer-output.bmp");
 
   return 0;
 }

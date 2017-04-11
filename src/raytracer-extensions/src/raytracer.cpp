@@ -97,9 +97,14 @@ int main(int argc, char *argv[]) {
     SDL_WarpMouse(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
   }
 
+  char output_filename[100];
+  int frame = 0;
   while (NoQuitMessageSDL()) {
     Update();
     Draw();
+    snprintf(output_filename, 100, "raytracer-extensions-%d.bmp", frame);
+    SDL_SaveBMP(screen, output_filename);
+    frame++;
   }
 
   return 0;
