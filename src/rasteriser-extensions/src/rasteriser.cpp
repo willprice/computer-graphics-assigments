@@ -1,11 +1,13 @@
-#include <SDL.h>
-#include <cmath>
-#include <csignal>
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
 #include <iostream>
 #include <map>
 #include <set>
+
+#include <cmath>
+#include <csignal>
+
+#include <SDL.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 #include <glm/ext.hpp>
 
 #include "SDLauxiliary.hpp"
@@ -32,7 +34,7 @@ using glm::mat4;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES */
 
-#define MOUSE_CONTROLS_ON 0
+#define MOUSE_CONTROLS_ON 1
 
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
@@ -82,7 +84,7 @@ vec3 currentColor;
 // at the intersection of triangles
 // on the right wall
 float YAW = 0.0001;
-float PITCH = 0;
+float PITCH = M_PI_4 / 4;
 float ROLL = 0;
 vec3 CAMERA_CENTRE(0, 0, -3.001);
 
@@ -120,8 +122,6 @@ float computeRenderTime();
 void calculateScreenPixelCentres();
 void vertexShader(const Vertex &v, Pixel &p);
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line);
-void drawLineSDL(SDL_Surface *surface, Pixel a, Pixel b, vec3 color);
-void drawPolygonEdges(const vector<vec3> &vertices);
 void interpolate(Pixel a, Pixel b, vector<Pixel> &result);
 void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
                  vector<Pixel> &rightPixels);
@@ -132,7 +132,6 @@ void pixelShader(const Pixel &pixel);
 void computeVertexNormals(vector<Triangle> &triangles);
 void updateVertexNormal(const set<Triangle *> &triangles, const Vertex &vertex,
                         vec3 normal);
-void setAdd(vector<Triangle> &triangles, Triangle &triangle);
 
 void clip(const vector<Vertex> &vertices);
 
@@ -142,6 +141,7 @@ int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, false);
   TIME = SDL_GetTicks(); // Set start value for timer.
   signal(SIGINT, SIG_DFL);
+
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
@@ -383,13 +383,6 @@ void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
         rightPixels[relative_y] = pixel;
       }
     }
-  }
-}
-void drawLineSDL(SDL_Surface *surface, Pixel a, Pixel b, vec3 color) {
-  vector<Pixel> edge;
-  constructPixelLine(a, b, edge);
-  for (auto pixel : edge) {
-    PutPixelSDL(surface, pixel.x, pixel.y, color);
   }
 }
 
