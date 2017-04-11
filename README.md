@@ -1,23 +1,29 @@
-# Assignment 1: Ray Tracer
+# Computer Graphic Assignments
 
-An implementation of a ray tracer on a
-[Cornell Box](https://en.wikipedia.org/wiki/Cornell_box)
+This repository contains the assignments for COMS30115 
+"Computer Graphics", a rasteriser and raytracer are implemented.
 
+Both the raytracer and rasteriser render a
+[Cornell Box](https://en.wikipedia.org/wiki/Cornell_box).
 
 ## Build
 
 ```
+$ mkdir build
 $ cd build
-  # Alternatively use -DCMAKE_BUILD_TYPE=Debug for a debug build without -O3
-$ cmake .. -DGLM_INCLUDE_DIR=/path/to/glm -DCMAKE_BUILD_TYPE=Release
+$ cmake .. -DGLM_INCLUDE_DIR=/path/to/glm \
+           -DSDL_INCLUDE_DIR=/path/to/include/SDL \
+           -DSDL_LIBRARY=/path/to/libSDL.so \
+           -DCMAKE_BUILD_TYPE=Release
 $ make
 ```
 
 Build targets:
 
-- `raytracer`: Basic ray tracer without extensions
-- `rasteriser`: Basic rasteriser without extensions
-
+- `raytracer`: Basic ray tracer without extensions (`bin/raytracer`)
+- `rasteriser`: Basic rasteriser without extensions (`bin/rasteriser`)
+- `raytracer-extensions`: Ray tracer with extensions (`bin/raytracer-extensions`)
+- `rasteriser-extensions`: Rasteriser with extensions (`bin/rasteriser-extensions`)
 
 ## Running
 
@@ -33,7 +39,19 @@ Controls:
 Running `./bin/rasteriser` after `make` will launch the rasteriser.
 
 Controls:
+* `w`: Camera forward
+* `s`: Camera backward
+* `a`: Camera left
+* `d`: Camera right
+* `i`: Light move forward
+* `k`: Light move backward
+* `j`: Light move left
+* `l`: Light move right
+* `u`: Light move up
+* `o`: Light move down
+* `mouse`: Camera  
 * `Ctrl-C`: exit.
+
 
 ## Dependencies
 
