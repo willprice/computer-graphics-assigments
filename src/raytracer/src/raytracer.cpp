@@ -1,9 +1,9 @@
+#include "omp.h"
 #include <SDL.h>
 #include <cmath>
 #include <csignal>
 #include <glm/glm.hpp>
 #include <iostream>
-#include <glm/ext.hpp>
 
 #include "SDLauxiliary.hpp"
 #include "interpolation.hpp"
@@ -28,11 +28,7 @@ const float WORLD_WIDTH = 2;
 const float WORLD_HEIGHT = 2;
 const float FOCAL_LENGTH = 2;
 
-int RENDER_COUNT = 0;
-
 static const float TRANSLATION_STEP_SIZE = 0.1;
-
-vec3 ACCUMULATION_BUFFER[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
@@ -59,10 +55,6 @@ vec3 LIGHT_COLOR = 14.f * vec3(1, 1, 1);
 
 vec3 INDIRECT_LIGHT = 0.5f * vec3(1, 1, 1);
 
-const size_t MAX_DEPTH = 3;
-
-const size_t PIXEL_RAY_COUNT = 2;
-
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
 
@@ -79,10 +71,6 @@ bool closest_intersection(vec3 start, vec3 direction,
 float computeRenderTime();
 void calculateScreenPixelCentres();
 vec3 directLight(const Intersection &intersection);
-
-vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth);
-
-void createCoordinateSystem(const vec3 &basis_1, vec3 &basis_2, vec3 &basis_3);
 
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -113,99 +101,47 @@ void Update() {
 }
 
 void Draw() {
-  if (SDL_MUSTLOCK(screen)) {
+  SDL_FillRect(screen, 0, 0);
+
+  if (SDL_MUSTLOCK(screen))
     SDL_LockSurface(screen);
-  }
+
+  if (SDL_MUSTLOCK(screen))
+    SDL_UnlockSurface(screen);
 
   updateCameraRotation();
-  RENDER_COUNT++;
 
-  float pixel_width = screen_pixel_centres_y[1] - screen_pixel_centres_y[0];
-  float pixel_height = screen_pixel_centres_x[1] - screen_pixel_centres_x[0];
-
-  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
-    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
-      vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
-                        FOCAL_LENGTH);
-      vec3 origin = CAMERA_CENTRE;
-      vec3 reflected_light;
-      for (size_t pixel_ray_index = 0; pixel_ray_index < PIXEL_RAY_COUNT; pixel_ray_index++) {
-        vec3 jitter = {(drand48() - 0.5f) * pixel_height, (drand48() - 0.5f) * pixel_width, 0};
-        vec3 direction = CAMERA_ROTATION * (pixel_centre + jitter);
-        reflected_light += castRay(origin, direction, 0);
+#pragma omp parallel
+  {
+#pragma omp for
+    for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
+      for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
+        vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
+                          FOCAL_LENGTH);
+        Intersection closestIntersection;
+        if (closest_intersection(CAMERA_CENTRE, CAMERA_ROTATION * pixel_centre,
+                                 triangles, closestIntersection)) {
+          vec3 reflected_light(0, 0, 0);
+          vec3 light_to_previous =
+              -LIGHT_POSITION + closestIntersection.position;
+          Intersection potential_occlusion;
+          closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
+                               potential_occlusion);
+          Triangle triangle = triangles[closestIntersection.triangleIndex];
+          if (potential_occlusion.triangleIndex ==
+              closestIntersection.triangleIndex) {
+            vec3 illumination =
+                directLight(closestIntersection) + INDIRECT_LIGHT;
+            reflected_light = triangle.color * illumination;
+          } else {
+            reflected_light = triangle.color * INDIRECT_LIGHT;
+          }
+          PutPixelSDL(screen, x, y, reflected_light);
+        }
       }
-      reflected_light /= PIXEL_RAY_COUNT;
-      vec3 previous_pixel_value = GetPixelSDL(screen, x, y);
-      PutPixelSDL(screen, x, y, (1 / ((float) RENDER_COUNT)) * (previous_pixel_value * ((float) RENDER_COUNT - 1) + reflected_light));
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
-
-  if (SDL_MUSTLOCK(screen)) {
-    SDL_UnlockSurface(screen);
-  }
-}
-
-vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
-  vec3 direct_light = {0, 0, 0};
-  Intersection closestIntersection;
-  if (closest_intersection(origin, direction,
-                           triangles, closestIntersection)) {
-    vec3 light_to_previous =
-            -LIGHT_POSITION + closestIntersection.position;
-    Intersection potential_occlusion;
-    closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
-                         potential_occlusion);
-    Triangle triangle = triangles[closestIntersection.triangleIndex];
-    if (potential_occlusion.triangleIndex ==
-        closestIntersection.triangleIndex) {
-      direct_light = directLight(closestIntersection);
-    }
-
-    float continueCastProbability = 0.65;
-
-    if (depth > 0 && (depth >= MAX_DEPTH || continueCastProbability < drand48())) {
-      return direct_light;
-    }
-
-    vec3 indirect_light = {0, 0, 0};
-    size_t ray_count = 3;
-    for (size_t ray_index = 0; ray_index < ray_count; ray_index++) {
-      float cosTheta = drand48();
-      float sinTheta = sqrt(1 - cosTheta * cosTheta);
-      float phi = drand48() * 2 * M_PI;
-      vec3 sample(sinTheta*cos(phi), cosTheta, sinTheta*sin(phi));
-
-      const vec3 &basis_1 = triangle.normal;
-      vec3 basis_2, basis_3;
-      createCoordinateSystem(basis_1, basis_2, basis_3);
-
-      vec3 sampleWorld(
-              sample.x * basis_3.x + sample.y * basis_1.x + sample.z * basis_2.x,
-              sample.x * basis_3.y + sample.y * basis_1.y + sample.z * basis_2.y,
-              sample.x * basis_3.z + sample.y * basis_1.z + sample.z * basis_2.z
-      );
-      indirect_light += cosTheta * castRay(closestIntersection.position + 0.00001f * sampleWorld, sampleWorld, depth + 1);
-    }
-    indirect_light /= ray_count;
-
-
-    vec3 light = triangle.reflectance * (triangle.color * (direct_light + 2.5f * indirect_light));
-    return light;
-  } else {
-    return {0, 0, 0};
-  }
-}
-
-
-/** Taken from scratchapixel */
-void createCoordinateSystem(const vec3 &basis_1, vec3 &basis_2, vec3 &basis_3) {
-  if (std::fabs(basis_1.x) > std::fabs(basis_2.y)) {
-    basis_2 = vec3(basis_1.z, 0, -basis_1.x) / sqrtf(basis_1.x * basis_1.x + basis_1.z * basis_1.z);
-  } else {
-    basis_2 = vec3(0, -basis_1.z, basis_1.y) / sqrtf(basis_1.y * basis_1.y + basis_1.z * basis_1.z);
-  }
-  basis_3 = glm::cross(basis_1, basis_2);
 }
 
 vec3 directLight(const Intersection &intersection) {
