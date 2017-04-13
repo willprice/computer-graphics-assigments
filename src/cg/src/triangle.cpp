@@ -6,16 +6,17 @@
 
 namespace cg {
 using namespace glm;
-Triangle::Triangle(vec3 v0, vec3 v1, vec3 v2, vec3 color)
-    : v0(v0), v1(v1), v2(v2), color(color) {
+Triangle::Triangle(vec3 _v0, vec3 _v1, vec3 _v2, vec3 color)
+    : v0(_v0), v1(_v1), v2(_v2), color(color) {
   ComputeNormal();
 }
 
-void Triangle::ComputeNormal() { normal = normalize(cross(e2(), e1())); }
+void Triangle::ComputeNormal() {
+  e1 = v1.position - v0.position;
+  e2 = v2.position - v0.position;
+  normal = normalize(cross(e2, e1));
+}
 
-vec3 Triangle::e1() { return v1.position - v0.position; }
-
-vec3 Triangle::e2() { return v2.position - v0.position; }
 
 bool Triangle::operator==(const Triangle &other) {
   // NOTE: maybe check normal as well?
@@ -27,5 +28,6 @@ bool Triangle::operator==(const Triangle &other) {
 std::ostream &operator<<(std::ostream &os, Triangle &triangle) {
   os << "[" << triangle.v0.position << ", " << triangle.v1.position << ", "
      << triangle.v2.position << "]";
+  return os;
 }
 }

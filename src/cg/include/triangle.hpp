@@ -11,6 +11,8 @@ public:
   Vertex v0;
   Vertex v1;
   Vertex v2;
+  glm::vec3 e1;
+  glm::vec3 e2;
   glm::vec3 normal;
   glm::vec3 color;
   float reflectance = 1;
@@ -19,8 +21,7 @@ public:
   bool operator==(const Triangle &other);
 
   void ComputeNormal();
-  glm::vec3 e1();
-  glm::vec3 e2();
+
 };
 std::ostream &operator<<(std::ostream &os, Triangle &triangle);
 };

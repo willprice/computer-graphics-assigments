@@ -73,9 +73,7 @@ void updateCameraParameters(const Uint8 *keystate);
 void updateCameraPosition(const Uint8 *keystate);
 void updateCameraRotation(const Uint8 *keystate);
 void updateLightPosition(const Uint8 *keystate);
-bool closest_intersection(vec3 start, vec3 direction,
-                          const vector<Triangle> &triangles,
-                          Intersection &closestIntersection);
+bool closest_intersection(vec3 start, vec3 direction, Intersection &closestIntersection);
 float computeRenderTime();
 void calculateScreenPixelCentres();
 vec3 directLight(const Intersection &intersection);
@@ -154,13 +152,11 @@ void Draw() {
 vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
   vec3 direct_light = {0, 0, 0};
   Intersection closestIntersection;
-  if (closest_intersection(origin, direction,
-                           triangles, closestIntersection)) {
+  if (closest_intersection(origin, direction, closestIntersection)) {
     vec3 light_to_previous =
             -LIGHT_POSITION + closestIntersection.position;
     Intersection potential_occlusion;
-    closest_intersection(LIGHT_POSITION, light_to_previous, triangles,
-                         potential_occlusion);
+    closest_intersection(LIGHT_POSITION, light_to_previous, potential_occlusion);
     Triangle triangle = triangles[closestIntersection.triangleIndex];
     if (potential_occlusion.triangleIndex ==
         closestIntersection.triangleIndex) {
@@ -243,13 +239,13 @@ void calculateScreenPixelCentres() {
   interpolate(topLeft.x, topRight.x, screen_pixel_centres_x);
 }
 
-bool closest_intersection(vec3 start, vec3 direction,
-                          const vector<Triangle> &triangles,
-                          Intersection &closestIntersection) {
+bool closest_intersection(vec3 start, vec3 direction, Intersection &closestIntersection) {
   vector<Intersection> validIntersection;
-  for (int i = 0; i < triangles.size(); i++) {
-    Triangle triangle = triangles[i];
-    mat3 A(-direction, triangle.e1(), triangle.e2());
+  Triangle triangle = triangles[0];
+  Intersection intersection;
+  for (size_t i = 0; i < triangles.size(); i++) {
+    triangle = triangles[i];
+    mat3 A(-direction, triangle.e1, triangle.e2);
     vec3 b = start - triangle.v0.position;
     if (glm::determinant(A) == 0) {
       continue;
@@ -259,7 +255,6 @@ bool closest_intersection(vec3 start, vec3 direction,
     float v = intersection_point.z;
     float t = intersection_point.x;
     if (u >= 0 && v >= 0 && u + v <= 1 && t >= 0) {
-      Intersection intersection;
       intersection.distance = glm::length(t * direction);
       intersection.position = start + t * direction;
       intersection.triangleIndex = i;
@@ -279,6 +274,7 @@ bool closest_intersection(vec3 start, vec3 direction,
   }
   return true;
 }
+
 float computeRenderTime() {
   int t2 = SDL_GetTicks();
   float dt = float(t2 - TIME);
