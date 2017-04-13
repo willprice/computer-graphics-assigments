@@ -126,20 +126,26 @@ void Draw() {
   float pixel_width = screen_pixel_centres_y[1] - screen_pixel_centres_y[0];
   float pixel_height = screen_pixel_centres_x[1] - screen_pixel_centres_x[0];
 
-  for (int y = 0; y < screen_pixel_centres_y.size(); y++) {
-    for (int x = 0; x < screen_pixel_centres_x.size(); x++) {
+  // We use dynamic scheduling as each pixel may take different amounts of time to render depending on
+  // how many rays we cast out, this is more suited to dynamic scheduling than static scheduling.
+  #pragma omp parallel for schedule(dynamic) collapse(2)
+  for (size_t y = 0; y < screen_pixel_centres_y.size(); y++) {
+    for (size_t x = 0; x < screen_pixel_centres_x.size(); x++) {
       vec3 pixel_centre(screen_pixel_centres_x[x], screen_pixel_centres_y[y],
                         FOCAL_LENGTH);
       vec3 origin = CAMERA_CENTRE;
       vec3 reflected_light;
+
       for (size_t pixel_ray_index = 0; pixel_ray_index < PIXEL_RAY_COUNT; pixel_ray_index++) {
         vec3 jitter = {(drand48() - 0.5f) * pixel_height, (drand48() - 0.5f) * pixel_width, 0};
         vec3 direction = CAMERA_ROTATION * (pixel_centre + jitter);
         reflected_light += castRay(origin, direction, 0);
       }
+
       reflected_light /= PIXEL_RAY_COUNT;
       vec3 previous_pixel_value = GetPixelSDL(screen, x, y);
-      PutPixelSDL(screen, x, y, (1 / ((float) RENDER_COUNT)) * (previous_pixel_value * ((float) RENDER_COUNT - 1) + reflected_light));
+      PutPixelSDL(screen, x, y, (1 / ((float) RENDER_COUNT)) *
+                                (previous_pixel_value * ((float) RENDER_COUNT - 1) + reflected_light));
     }
   }
   SDL_UpdateRect(screen, 0, 0, 0, 0);
