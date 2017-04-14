@@ -1,5 +1,5 @@
 #include "interpolation.hpp"
-#include "catch.hpp"
+#include "../catch.hpp"
 #include "glm/ext.hpp"
 #include <glm/glm.hpp>
 

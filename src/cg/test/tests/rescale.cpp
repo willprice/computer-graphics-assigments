@@ -1,4 +1,4 @@
-#include "catch.hpp"
+#include "../catch.hpp"
 
 #include "glm/ext.hpp"
 #include "interpolation.hpp"
