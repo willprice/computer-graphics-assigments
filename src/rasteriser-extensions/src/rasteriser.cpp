@@ -15,6 +15,7 @@
 #include "interpolation.hpp"
 #include "models/cornell_box.hpp"
 #include "triangle.hpp"
+#include "vertex_attributes.hpp"
 
 using namespace std;
 using namespace cg;
@@ -34,7 +35,7 @@ using glm::mat4;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES */
 
-#define MOUSE_CONTROLS_ON 1
+#define MOUSE_CONTROLS_ON 0
 
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
@@ -63,6 +64,16 @@ float _CF_TO_CLIP_SPACE_TRANSFORM_ARRAY[16] = {
         0, 0, - (2 * f * n) / (f - n), 0
 };
 mat4 CF_TO_CLIP_SPACE_TRANSFORM = glm::make_mat4(_CF_TO_CLIP_SPACE_TRANSFORM_ARRAY);
+
+
+float _VIEWPORT_TRANSFORM_ARRAY[16] = {
+        0.5, 0, 0, 0.5,
+        0, 0.5, 0, 0.5,
+        0, 0, 0.5, 0.5,
+        0, 0, 0, 1
+};
+mat4 VIEWPORT_TRANSFORM = glm::transpose(glm::make_mat4(_VIEWPORT_TRANSFORM_ARRAY));
+
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
 
@@ -83,8 +94,8 @@ vec3 currentColor;
 // Adding a tiny amount of camera rotation fixes little black spots that appear
 // at the intersection of triangles
 // on the right wall
-float YAW = 0.0001;
-float PITCH = M_PI_4 / 4;
+float YAW = 0;
+float PITCH = 0; // When using mouse set to M_PI_4 / 4
 float ROLL = 0;
 vec3 CAMERA_CENTRE(0, 0, -3.001);
 
@@ -100,6 +111,7 @@ vec3 INDIRECT_LIGHT_POWER_PER_AREA = 0.5f * vec3(1, 1, 1);
 vec3 currentNormal;
 float currentReflectance;
 
+enum { AXIS_X, AXIS_Y, AXIS_Z };
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS */
 
@@ -120,22 +132,30 @@ void updateCameraRotation(const Uint8 *keystate);
 void updateLightPosition(const Uint8 *keystate);
 float computeRenderTime();
 void calculateScreenPixelCentres();
-void vertexShader(const Vertex &v, Pixel &p);
+void vertexShader(const vec3 &vertexWF, VertexAttributes & pixel);
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line);
 void interpolate(Pixel a, Pixel b, vector<Pixel> &result);
 void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
                  vector<Pixel> &rightPixels);
 void drawRows(const vector<Pixel> &leftPixels,
               const vector<Pixel> &rightPixels);
-void drawPolygon(const vector<Vertex> &vertices);
+void drawPolygon(vector<Vertex> &vertices, vector<VertexAttributes> attributes);
 void pixelShader(const Pixel &pixel);
 void computeVertexNormals(vector<Triangle> &triangles);
 void updateVertexNormal(const set<Triangle *> &triangles, const Vertex &vertex,
                         vec3 normal);
 
-void clip(const vector<Vertex> &vertices);
+vector<vec4> clip(vector<Vertex> &vertices);
 
 vec3 worldToCamera(const vec3 &vertexWF);
+vec4 worldToNDC(const vec3 &vertex);
+
+
+vector<vec4> clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis);
+
+vector<vec4> clipPolygonsBehindCamera(vector<vec4> &polygonVertices);
+
+vector<Pixel> viewportTransform(vector<vec4> verticesNDC, vector<VertexAttributes> attributes);
 
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, false);
@@ -219,11 +239,17 @@ void Draw() {
     currentNormal = triangles[i].normal;
     // NOTE: We assume that the reflectance is constant over the triangle.
     currentReflectance = 1;
+
     vector<Vertex> vertices(3);
     vertices[0] = triangles[i].v0;
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
-    drawPolygon(vertices);
+    vector<VertexAttributes> attributes = {
+            {vertices[0].position},
+            {vertices[1].position},
+            {vertices[2].position},
+    };
+    drawPolygon(vertices, attributes);
   }
 
   if (SDL_MUSTLOCK(screen)) {
@@ -250,17 +276,51 @@ void interpolate(Pixel start, Pixel end, vector<Pixel> &result) {
   }
 }
 
-void drawPolygon(const vector<Vertex> &vertices) {
-  int V = vertices.size();
-  vector<Pixel> vertexPixels(V);
-  clip(vertices);
-  for (int i = 0; i < V; ++i) {
-    vertexShader(vertices[i], vertexPixels[i]);
+
+vec4 perspectiveDivision(const vec4& vec) {
+  vec4 vertexNDC;
+  vertexNDC.x = vec.x / vec.w;
+  vertexNDC.y = vec.y / vec.w;
+  vertexNDC.z = vec.z / vec.w;
+  vertexNDC.w = 1;
+  return vertexNDC;
+}
+
+vector<vec4> perspectiveDivide(vector<vec4> & verticesClipSpace) {
+  vector<vec4> verticesNDC;
+  for (auto &vertexClipSpace : verticesClipSpace) {
+    verticesNDC.push_back(perspectiveDivision(vertexClipSpace));
   }
+  return verticesNDC;
+}
+
+
+void drawPolygon(vector<Vertex> &vertices, vector<VertexAttributes> attributes) {
+  for (int i = 0; i < vertices.size(); ++i) {
+    vertexShader(vertices[i].position, attributes[i]);
+  }
+  vector<vec4> verticesClipSpace = clip(vertices);
+  vector<vec4> verticesNDC = perspectiveDivide(verticesClipSpace);
+  vector<Pixel> vertexPixels = viewportTransform(verticesNDC, attributes);
+  //viewportTransform
   vector<Pixel> leftPixels;
   vector<Pixel> rightPixels;
   computeRows(vertexPixels, leftPixels, rightPixels);
   drawRows(leftPixels, rightPixels);
+}
+
+vector<Pixel> viewportTransform(vector<vec4> verticesNDC, vector<VertexAttributes> attributes) {
+  vector<Pixel> pixels(verticesNDC.size());
+  for (size_t i = 0; i < verticesNDC.size(); ++i) {
+    vec4 vertex = verticesNDC[i];
+    pixels[i].pos3d = attributes[i].posWF;
+    pixels[i].zinv = attributes[i].zinv;
+    vec4 pixelVertex = VIEWPORT_TRANSFORM * vertex;
+    pixels[i].x = int(SCREEN_WIDTH * pixelVertex.x);
+    pixels[i].y = int(SCREEN_HEIGHT * pixelVertex.y);
+  }
+
+  return pixels;
 }
 
 vec4 homogenise(const vec3& vec) {
@@ -272,34 +332,101 @@ vec4 homogenise(const vec3& vec) {
   return homogenisedVec;
 }
 
-vec4 perspectiveDivision(const vec4& vec) {
-  vec4 vertexNDC;
-  vertexNDC.x = vec.x / vec.w;
-  vertexNDC.y = vec.y / vec.w;
-  vertexNDC.z = vec.z / vec.w;
-  vertexNDC.w = 1;
-  return vertexNDC;
-}
-
-void clip(const std::vector<Vertex> &vertices) {
+std::vector<vec4> clip(std::vector<Vertex> &vertices) {
+  assert(vertices.size() > 0);
   vector<vec4> verticesClipSpace;
   for (auto &vertex : vertices) {
     vec3 vertexCF = worldToCamera(vertex.position);
     vec4 vertexClipSpace = CF_TO_CLIP_SPACE_TRANSFORM * homogenise(vertexCF);
-    vec4 vertexNDC = perspectiveDivision(vertexClipSpace);
-    if (vertex.position == vec3(1, -1, 1)) {
-      cout << "World:  " << vertex.position << endl;
-      cout << "Camera: " << vertexCF << endl;
-      cout << "Clip:   " << vertexClipSpace << endl;
-      cout << "NDC:   " << vertexNDC << endl;
-    }
     verticesClipSpace.push_back(vertexClipSpace);
   }
-  
+  //verticesClipSpace = clipPolygonsBehindCamera(verticesClipSpace);
+  //verticesClipSpace = clipPolygonOnAxis(verticesClipSpace, AXIS_X);
+  //verticesClipSpace = clipPolygonOnAxis(verticesClipSpace, AXIS_Y);
+  //verticesClipSpace = clipPolygonOnAxis(verticesClipSpace, AXIS_Z);
+  return verticesClipSpace;
+}
+
+vector<vec4> clipPolygonsBehindCamera(vector<vec4> &polygonVertices) {
+  vector<vec4> verticesInFrontOfCamera;
+
+  vec4 & previousVertex = polygonVertices.back();
+  // Normal for clipping against w = \epsilon is (0, 0, 0, 1), i.e. just the w component
+  float previousDot = previousVertex.w;
+  float currentDot;
+  for (auto & vertex: polygonVertices) {
+    currentDot = vertex.w;
+    if (previousDot > 0 && currentDot < 0 ||
+        previousDot < 0 && currentDot > 0) {
+      float tForIntersection = previousVertex.w / (previousVertex.w - vertex.w);
+      vec4 intersection = previousVertex + tForIntersection * (vertex - previousVertex);
+      verticesInFrontOfCamera.push_back(intersection);
+    }
+
+    if (currentDot > 0) {
+      verticesInFrontOfCamera.push_back(vertex);
+    }
+    previousVertex = vertex;
+  }
+  return verticesInFrontOfCamera;
+}
+
+
+// This clips according to Ken Joy's convex polygon clipping algorithm
+// We iterate over the vertices of the polygon deciding whether each vertex is
+// in or out, then if the previous vertex and the current vertex transition from
+// out to in or in to out we compute the intersection of the line between the
+// current and previous vertex and the plane and add that to our list of
+// vertices making up the polygon.
+vector<vec4> clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis) {
+  // The comments in this algorithm look at the case when axis = x, this
+  // makes understanding the algorithm simpler, the comments hold for all
+  // axes.
+
+  vector<vec4> verticesInsidePlane;
+  vec4 &previousVertex = polygonVertices.back();
+  // e.g. for X axis, our normal is (1, 0, 0, 1) for w = -x or (-1, 0, 0, 1) for
+  // w = x.
+
+  // First we clip against w = x
+  float previousDot = previousVertex[axis] + previousVertex.w;
+  float currentDot;
+  for (auto & vertex : polygonVertices) {
+    currentDot = vertex[axis] + vertex.w;
+    if (previousDot < 0 && currentDot > 0 ||
+        previousDot > 0 && currentDot < 0) {
+      // Line segment goes from outside to inside the plane, so we need to
+      // calculate the intersection
+      // our line from Q_1 to Q_2 can be written in parameteric form:
+      // Q(t) = Q_1 + t (Q_2 - Q_1)
+      // We need to find the t such that Q(t) lies on the plane, refer to the
+      // notes above on how this works.
+
+      float tForIntersection = (previousVertex.w - previousVertex[axis]) /
+              ((previousVertex.w - previousVertex[axis]) - (vertex.w - vertex[axis]));
+      vec4 intersection = previousVertex + tForIntersection * (vertex - previousVertex);
+      verticesInsidePlane.push_back(intersection);
+    }
+
+    if (currentDot > 0) {
+      verticesInsidePlane.push_back(vertex);
+    }
+
+    previousVertex = vertex;
+  }
+  return verticesInsidePlane;
 }
 
 vec3 worldToCamera(const vec3 &vertexWF) {
   return (vertexWF - CAMERA_CENTRE) * CAMERA_ROTATION;
+}
+
+vec4 worldToNDC(const vec3 &vertex) {
+  vec3 vertexCF = worldToCamera(vertex);
+  vec4 vertexCFHomogonised = homogenise(vertexCF);
+  vec4 vertexCS = CF_TO_CLIP_SPACE_TRANSFORM * vertexCFHomogonised;
+  vec4 vertexNDC = perspectiveDivision(vertexCS);
+  return vertexNDC;
 }
 
 
@@ -320,24 +447,28 @@ void drawRows(const vector<Pixel> &leftPixels,
   }
 }
 
+
 void pixelShader(const Pixel &pixel) {
-  // Vector from surface point to the light source
-  vec3 surface_to_light = LIGHT_POSITION - pixel.pos3d;
-
-  // Compute illumination of vertex
-  float scale = (4 * glm::pi<float>() * length(surface_to_light) *
-                 length(surface_to_light));
-  vec3 direct_illumination =
-      (LIGHT_POWER *
-       max(dot(normalize(surface_to_light), normalize(currentNormal)), 0.0f)) /
-      scale;
-
-  vec3 illumination = currentReflectance *
-                      (direct_illumination + INDIRECT_LIGHT_POWER_PER_AREA);
-
   int x = pixel.x;
   int y = pixel.y;
   if (pixel.zinv > depthBuffer[y][x]) {
+    // Vector from surface point to the light source
+
+    vec3 surface_to_light = vec3(worldToNDC(LIGHT_POSITION))  - pixel.pos3d;
+
+    // Compute illumination of vertex
+    #pragma clang diagnostic push
+    #pragma ide diagnostic ignored "IncompatibleTypes"
+    float surface_to_light_distance = length(surface_to_light);
+    #pragma clang diagnostic pop
+    float scale = (4 * M_PI * surface_to_light_distance * surface_to_light_distance);
+    vec3 direct_illumination =
+            (LIGHT_POWER *
+             max(dot(normalize(surface_to_light), normalize(currentNormal)), 0.0f)) /
+            scale;
+
+    vec3 illumination = currentReflectance *
+                        (direct_illumination + INDIRECT_LIGHT_POWER_PER_AREA);
     depthBuffer[y][x] = pixel.zinv;
     PutPixelSDL(screen, x, y, illumination * currentColor);
   }
@@ -396,22 +527,11 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
   interpolate(start, end, line);
 }
 
-void vertexShader(const Vertex &world_point, Pixel &pixel) {
-  vec3 point = (world_point.position - CAMERA_CENTRE) * CAMERA_ROTATION;
+void vertexShader(const vec3 &vertexWF, VertexAttributes & attributes) {
+  vec3 vertexCF = worldToCamera(vertexWF);
+  attributes.posWF = vertexWF;
 
-  // Bad things will probably happen if z is zero
-  assert(point.z != 0);
-  pixel.zinv = 1 / point.z;
-
-  // OPTIMISATION NOTE: * pixel.zinv == * 1 / point.z
-  pixel.x =
-      (int)((SCREEN_WIDTH / WORLD_WIDTH) * FOCAL_LENGTH * point.x * pixel.zinv +
-            SCREEN_WIDTH / 2);
-  pixel.y = (int)((SCREEN_HEIGHT / WORLD_HEIGHT) * FOCAL_LENGTH * point.y *
-                      pixel.zinv +
-                  SCREEN_HEIGHT / 2);
-
-  pixel.pos3d = world_point.position;
+  attributes.zinv = 1 / vertexCF.z;
 }
 
 void calculateScreenPixelCentres() {
@@ -518,3 +638,4 @@ void updateLightPosition(const Uint8 *keystate) {
     LIGHT_POSITION += down * TRANSLATION_STEP_SIZE;
   }
 }
+
