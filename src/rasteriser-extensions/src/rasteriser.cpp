@@ -86,6 +86,11 @@ struct Pixel {
   vec3 pos3d;
 };
 
+std::ostream& operator<<(std::ostream& os, const Pixel & pixel) {
+  os << "(" << pixel.x << ", " << pixel.y << ")[zinv=" << pixel.zinv << "]";
+  return os;
+}
+
 SDL_Surface *screen;
 int TIME;
 vector<Triangle> triangles;
@@ -145,17 +150,23 @@ void computeVertexNormals(vector<Triangle> &triangles);
 void updateVertexNormal(const set<Triangle *> &triangles, const Vertex &vertex,
                         vec3 normal);
 
-vector<vec4> clip(vector<Vertex> &vertices);
+void clip(vector<vec4> &vertices, vector<VertexAttributes> &attributes);
 
 vec3 worldToCamera(const vec3 &vertexWF);
 vec4 worldToNDC(const vec3 &vertex);
+vec4 homogenise(const vec3& vec);
 
 
-vector<vec4> clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis);
+void clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis,
+                       vector<VertexAttributes> &attributes);
 
-vector<vec4> clipPolygonsBehindCamera(vector<vec4> &polygonVertices);
+void clipPolygonsBehindCamera(vector<vec4> &polygonVertices, vector<VertexAttributes> &attributes);
 
 vector<Pixel> viewportTransform(vector<vec4> verticesNDC, vector<VertexAttributes> attributes);
+
+vector<vec3> cameraTransform(const vector<Vertex> &verticesWF);
+
+vector<vec4> clipSpaceTransform(const vector<vec3> verticesCF);
 
 int main(int argc, char *argv[]) {
   screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, false);
@@ -299,14 +310,33 @@ void drawPolygon(vector<Vertex> &vertices, vector<VertexAttributes> attributes) 
   for (int i = 0; i < vertices.size(); ++i) {
     vertexShader(vertices[i].position, attributes[i]);
   }
-  vector<vec4> verticesClipSpace = clip(vertices);
+  vector<vec3> verticesCF = cameraTransform(vertices);
+  vector<vec4> verticesClipSpace = clipSpaceTransform(verticesCF);
+  //clip(verticesClipSpace, attributes);
   vector<vec4> verticesNDC = perspectiveDivide(verticesClipSpace);
   vector<Pixel> vertexPixels = viewportTransform(verticesNDC, attributes);
   //viewportTransform
   vector<Pixel> leftPixels;
   vector<Pixel> rightPixels;
+
   computeRows(vertexPixels, leftPixels, rightPixels);
   drawRows(leftPixels, rightPixels);
+}
+
+vector<vec4> clipSpaceTransform(const vector<vec3> verticesCF) {
+  vector<vec4> verticesClipSpace(verticesCF.size());
+  for (size_t i = 0; i < verticesCF.size(); i++) {
+    verticesClipSpace[i] = CF_TO_CLIP_SPACE_TRANSFORM * homogenise(verticesCF[i]);
+  }
+  return verticesClipSpace;
+}
+
+vector<vec3> cameraTransform(const vector<Vertex> &verticesWF) {
+  vector<vec3> verticesCF(verticesWF.size());
+  for (size_t i = 0; i < verticesWF.size(); i++) {
+    verticesCF[i] = worldToCamera(verticesWF[i].position);
+  }
+  return verticesCF;
 }
 
 vector<Pixel> viewportTransform(vector<vec4> verticesNDC, vector<VertexAttributes> attributes) {
@@ -323,39 +353,24 @@ vector<Pixel> viewportTransform(vector<vec4> verticesNDC, vector<VertexAttribute
   return pixels;
 }
 
-vec4 homogenise(const vec3& vec) {
-  vec4 homogenisedVec;
-  homogenisedVec.x = vec.x;
-  homogenisedVec.y = vec.y;
-  homogenisedVec.z = vec.z;
-  homogenisedVec.w = 1;
-  return homogenisedVec;
+
+void clip(vector<vec4> &verticesClipSpace, vector<VertexAttributes> &attributes) {
+  clipPolygonsBehindCamera(verticesClipSpace, attributes);
+  //clipPolygonOnAxis(verticesClipSpace, AXIS_X, attributes);
+  //clipPolygonOnAxis(verticesClipSpace, AXIS_Y);
+  //clipPolygonOnAxis(verticesClipSpace, AXIS_Z);
 }
 
-std::vector<vec4> clip(std::vector<Vertex> &vertices) {
-  assert(vertices.size() > 0);
-  vector<vec4> verticesClipSpace;
-  for (auto &vertex : vertices) {
-    vec3 vertexCF = worldToCamera(vertex.position);
-    vec4 vertexClipSpace = CF_TO_CLIP_SPACE_TRANSFORM * homogenise(vertexCF);
-    verticesClipSpace.push_back(vertexClipSpace);
-  }
-  //verticesClipSpace = clipPolygonsBehindCamera(verticesClipSpace);
-  //verticesClipSpace = clipPolygonOnAxis(verticesClipSpace, AXIS_X);
-  //verticesClipSpace = clipPolygonOnAxis(verticesClipSpace, AXIS_Y);
-  //verticesClipSpace = clipPolygonOnAxis(verticesClipSpace, AXIS_Z);
-  return verticesClipSpace;
-}
-
-vector<vec4> clipPolygonsBehindCamera(vector<vec4> &polygonVertices) {
+// We now get rid of any polygons behind the camera, or on the camera point itself, which would
+// mean w = 0 and cause a divide by 0 error in the perspective divide.
+void clipPolygonsBehindCamera(vector<vec4> &polygonVertices, vector<VertexAttributes> &attributes) {
   vector<vec4> verticesInFrontOfCamera;
 
   vec4 & previousVertex = polygonVertices.back();
   // Normal for clipping against w = \epsilon is (0, 0, 0, 1), i.e. just the w component
   float previousDot = previousVertex.w;
-  float currentDot;
   for (auto & vertex: polygonVertices) {
-    currentDot = vertex.w;
+    float currentDot = vertex.w;
     if (previousDot > 0 && currentDot < 0 ||
         previousDot < 0 && currentDot > 0) {
       float tForIntersection = previousVertex.w / (previousVertex.w - vertex.w);
@@ -368,7 +383,7 @@ vector<vec4> clipPolygonsBehindCamera(vector<vec4> &polygonVertices) {
     }
     previousVertex = vertex;
   }
-  return verticesInFrontOfCamera;
+  polygonVertices = verticesInFrontOfCamera;
 }
 
 
@@ -378,7 +393,8 @@ vector<vec4> clipPolygonsBehindCamera(vector<vec4> &polygonVertices) {
 // out to in or in to out we compute the intersection of the line between the
 // current and previous vertex and the plane and add that to our list of
 // vertices making up the polygon.
-vector<vec4> clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis) {
+void clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis,
+                       vector<VertexAttributes> &attributes) {
   // The comments in this algorithm look at the case when axis = x, this
   // makes understanding the algorithm simpler, the comments hold for all
   // axes.
@@ -414,7 +430,6 @@ vector<vec4> clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis)
 
     previousVertex = vertex;
   }
-  return verticesInsidePlane;
 }
 
 vec3 worldToCamera(const vec3 &vertexWF) {
@@ -486,6 +501,8 @@ void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
     }
   }
   uint numRowsOccupied = (uint)(max_y - min_y + 1);
+  assert(numRowsOccupied >= 0);
+  assert(numRowsOccupied <= SCREEN_WIDTH);
 
   leftPixels.resize(numRowsOccupied);
   rightPixels.resize(numRowsOccupied);
@@ -530,7 +547,6 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
 void vertexShader(const vec3 &vertexWF, VertexAttributes & attributes) {
   vec3 vertexCF = worldToCamera(vertexWF);
   attributes.posWF = vertexWF;
-
   attributes.zinv = 1 / vertexCF.z;
 }
 
@@ -637,5 +653,14 @@ void updateLightPosition(const Uint8 *keystate) {
   if (keystate[SDLK_o]) {
     LIGHT_POSITION += down * TRANSLATION_STEP_SIZE;
   }
+}
+
+vec4 homogenise(const vec3 &vec) {
+  vec4 homogenisedVec;
+  homogenisedVec.x = vec.x;
+  homogenisedVec.y = vec.y;
+  homogenisedVec.z = vec.z;
+  homogenisedVec.w = 1;
+  return homogenisedVec;
 }
 
