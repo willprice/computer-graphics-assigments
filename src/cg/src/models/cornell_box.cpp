@@ -100,12 +100,12 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
   H = vec3(314, 330, 456);
 
   // Front
-  triangles.push_back(Triangle(E, B, A, white));
-  triangles.push_back(Triangle(E, F, B, white));
+  triangles.push_back(Triangle(E, B, A, white, true));
+  triangles.push_back(Triangle(E, F, B, white, true));
 
   // Front
-  triangles.push_back(Triangle(F, D, B, white));
-  triangles.push_back(Triangle(F, H, D, white));
+  triangles.push_back(Triangle(F, D, B, white, true));
+  triangles.push_back(Triangle(F, H, D, white, true));
 
   // BACK
   triangles.push_back(Triangle(H, C, D, white));

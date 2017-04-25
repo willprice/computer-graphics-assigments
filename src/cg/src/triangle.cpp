@@ -11,6 +11,11 @@ Triangle::Triangle(vec3 _v0, vec3 _v1, vec3 _v2, vec3 color)
   ComputeNormal();
 }
 
+Triangle::Triangle(vec3 _v0, vec3 _v1, vec3 _v2, vec3 color, bool mirror)
+    : v0(_v0), v1(_v1), v2(_v2), color(color), mirror(mirror) {
+  ComputeNormal();
+}
+
 void Triangle::ComputeNormal() {
   e1 = v1.position - v0.position;
   e2 = v2.position - v0.position;

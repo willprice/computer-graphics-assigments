@@ -60,6 +60,7 @@ vec3 LIGHT_COLOR = 14.f * vec3(1, 1, 1);
 vec3 INDIRECT_LIGHT = 0.5f * vec3(1, 1, 1);
 
 const size_t MAX_DEPTH = 3;
+const size_t MAX_NUM_BOUNCES = MAX_DEPTH;
 
 const size_t PIXEL_RAY_COUNT = 2;
 
@@ -159,11 +160,40 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
   vec3 direct_light = {0, 0, 0};
   Intersection closestIntersection;
   if (closest_intersection(origin, direction, closestIntersection)) {
+
+
+
+    Triangle triangle = triangles[closestIntersection.triangleIndex];
+     int bounces = 0;
+     vec3 color = triangle.color;
+     while (triangle.mirror && bounces < MAX_NUM_BOUNCES + 1) {
+       vec3 surfaceNormal = glm::normalize(triangle.normal);
+
+       vec3 reflection = direction - 2 * glm::dot(direction, surfaceNormal) * surfaceNormal;
+
+       //Find point that mirror reflects the light to
+       if (closest_intersection(closestIntersection.position + 0.0001f * reflection, reflection, closestIntersection)) {
+         triangle = triangles[closestIntersection.triangleIndex];
+         color = triangle.color;
+       } else {
+         color = {0,0,0};
+         break;
+       }
+
+       bounces++;
+     }
+     /*
+     if (bounces == MAX_NUM_BOUNCES + 1) {
+       color = {0,0,0};
+     }
+     */
+
+
     vec3 light_to_previous =
             -LIGHT_POSITION + closestIntersection.position;
     Intersection potential_occlusion;
     closest_intersection(LIGHT_POSITION, light_to_previous, potential_occlusion);
-    Triangle triangle = triangles[closestIntersection.triangleIndex];
+    //Triangle triangle = triangles[closestIntersection.triangleIndex];
     if (potential_occlusion.triangleIndex ==
         closestIntersection.triangleIndex) {
       direct_light = directLight(closestIntersection);
@@ -196,6 +226,9 @@ vec3 castRay(const vec3 &origin, const vec3 &direction, size_t depth) {
     }
     indirect_light /= ray_count;
 
+    if (triangle.mirror) {
+
+    }
 
     vec3 light = triangle.reflectance * (triangle.color * (direct_light + 2.5f * indirect_light));
     return light;
