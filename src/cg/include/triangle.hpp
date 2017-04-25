@@ -16,7 +16,7 @@ public:
   glm::vec3 normal;
   glm::vec3 color;
   float reflectance = 1;
-  bool mirror;
+  bool mirror = false;
 
   Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color);
   Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color, bool mirror);
