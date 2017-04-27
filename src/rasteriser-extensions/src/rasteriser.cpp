@@ -166,9 +166,8 @@ int main(int argc, char *argv[]) {
   TIME = SDL_GetTicks(); // Set start value for timer.
   signal(SIGINT, SIG_DFL);
 
-  const char *file[9];
-  *file = "space.bmp";
-  textureSurface = SDL_LoadBMP(*file);
+  const char file[] = "space.bmp";
+  textureSurface = SDL_LoadBMP(file);
   if (textureSurface == NULL) {
     cout << "Failed to load texture" << endl;
   } else {
