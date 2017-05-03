@@ -12,6 +12,7 @@
 #include "interpolation.hpp"
 #include "models/cornell_box.hpp"
 #include "triangle.hpp"
+#include "../../rasteriser-extensions/src/vertex_attributes.hpp"
 
 using namespace std;
 using namespace cg;
@@ -75,14 +76,14 @@ float currentReflectance;
 
 void Update();
 void Draw();
-void updateCameraRotation();
+void initialiseCameraRotationMatrix();
 void updateCameraParameters(const Uint8 *keystate);
 void updateCameraPosition(const Uint8 *keystate);
 void updateCameraRotation(const Uint8 *keystate);
 void updateLightPosition(const Uint8 *keystate);
 float computeRenderTime();
 void calculateScreenPixelCentres();
-void vertexShader(const Vertex &v, Pixel &p);
+void vertexShader(const Vertex &ndc_vertex, Pixel &p);
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line);
 void drawLineSDL(SDL_Surface *surface, Pixel a, Pixel b, vec3 color);
 void drawPolygonEdges(const vector<vec3> &vertices);
@@ -172,7 +173,7 @@ void Draw() {
     SDL_LockSurface(screen);
   }
 
-  updateCameraRotation();
+  initialiseCameraRotationMatrix();
 
   for (uint i = 0; i < triangles.size(); ++i) {
     currentColor = triangles[i].color;
@@ -404,7 +405,7 @@ void updateCameraPosition(const Uint8 *keystate) {
   }
 }
 
-void updateCameraRotation() {
+void initialiseCameraRotationMatrix() {
   CAMERA_ROTATION_X[0] = vec3(1, 0, 0);
   CAMERA_ROTATION_X[1] = vec3(0, cos(PITCH), sin(PITCH));
   CAMERA_ROTATION_X[2] = vec3(0, -sin(PITCH), cos(PITCH));

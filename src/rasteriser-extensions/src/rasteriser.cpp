@@ -13,7 +13,7 @@
 #include "SDLauxiliary.hpp"
 #include "debug.hpp"
 #include "interpolation.hpp"
-#include "models/cornell_box.hpp"
+#include "cornell_box_reversed.hpp"
 #include "triangle.hpp"
 #include "vertex_attributes.hpp"
 
@@ -35,7 +35,8 @@ using glm::mat4;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES */
 
-#define MOUSE_CONTROLS_ON 0
+#define DEBUG false
+//#define DEBUG true
 
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
@@ -44,11 +45,12 @@ const float WORLD_HEIGHT = 2;
 const float FOCAL_LENGTH = 2;
 
 static const float TRANSLATION_STEP_SIZE = 0.01;
+static const float ROTATION_STEP_SIZE = 0.01;
 
 // z-coordinate of Far plane of viewing frustrum
-const float f = -20;
+const float f = 10;
 // z-coordinate of Near plane of viewing frustrum
-const float n = -FOCAL_LENGTH;
+const float n = FOCAL_LENGTH;
 // x-coordinate of Top right of near plane of the viewing frustum
 const float t = 1;
 // y-coordinate of top Right of near plane of the viewing frustum
@@ -58,21 +60,21 @@ const float l = -1;
 // x-coordinate of Bottom left of near plane of the viewing frustum
 const float b = -1;
 float _CF_TO_CLIP_SPACE_TRANSFORM_ARRAY[16] = {
-        2 * n / (r - l), 0, 0, 0,
-        0, 2 * n / (t - b), 0, 0,
-        (r + l)/(r - l), (t + b)/(t - b), - (f + n)/(f - n), -1,
-        0, 0, - (2 * f * n) / (f - n), 0
+        2 * n / (r - l) , 0               , 0                      , 0  ,
+        0               , 2 * n / (t - b) , 0                      , 0  ,
+        (r + l)/(r - l) , (t + b)/(t - b) , - (f + n)/(f - n)      , -1 ,
+        0               , 0               , -(2 * f * n) / (f - n) , 0
 };
 mat4 CF_TO_CLIP_SPACE_TRANSFORM = glm::make_mat4(_CF_TO_CLIP_SPACE_TRANSFORM_ARRAY);
 
 
 float _VIEWPORT_TRANSFORM_ARRAY[16] = {
-        0.5, 0, 0, 0.5,
-        0, 0.5, 0, 0.5,
-        0, 0, 0.5, 0.5,
-        0, 0, 0, 1
+0.5 , 0   , 0   , 0 ,
+0   , 0.5 , 0   , 0 ,
+0   , 0   , 0.5 , 0 ,
+0.5 , 0.5 , 0.5 , 1
 };
-mat4 VIEWPORT_TRANSFORM = glm::transpose(glm::make_mat4(_VIEWPORT_TRANSFORM_ARRAY));
+mat4 VIEWPORT_TRANSFORM = glm::make_mat4(_VIEWPORT_TRANSFORM_ARRAY);
 
 vector<float> screen_pixel_centres_y(SCREEN_HEIGHT);
 vector<float> screen_pixel_centres_x(SCREEN_WIDTH);
@@ -102,14 +104,14 @@ vec3 currentColor;
 float YAW = 0;
 float PITCH = 0; // When using mouse set to M_PI_4 / 4
 float ROLL = 0;
-vec3 CAMERA_CENTRE(0, 0, -3.001);
+vec3 CAMERA_CENTRE(0, 0, 3.001);
 
 mat3 CAMERA_ROTATION;
 mat3 CAMERA_ROTATION_X;
 mat3 CAMERA_ROTATION_Y;
 mat3 CAMERA_ROTATION_Z;
 
-vec3 LIGHT_POSITION(0, -0.5, -0.7);
+vec3 LIGHT_POSITION(0, -0.5, 0.7);
 vec3 LIGHT_POWER = 14.f * vec3(1, 1, 1);
 vec3 INDIRECT_LIGHT_POWER_PER_AREA = 0.5f * vec3(1, 1, 1);
 
@@ -128,9 +130,14 @@ std::ostream & operator<<(std::ostream &o, vec4 &v) {
   return o;
 }
 
+std::ostream & operator<<(std::ostream &o, VertexAttributes &attributes)  {
+  o << "(WF: " << attributes.posWF << ", zinv: " << attributes.zinv << ")";
+  return o;
+}
+
 void Update();
 void Draw();
-void updateCameraRotation();
+void initialiseCameraRotationMatrix();
 void updateCameraParameters(const Uint8 *keystate);
 void updateCameraPosition(const Uint8 *keystate);
 void updateCameraRotation(const Uint8 *keystate);
@@ -243,7 +250,7 @@ void Draw() {
     SDL_LockSurface(screen);
   }
 
-  updateCameraRotation();
+  initialiseCameraRotationMatrix();
 
   for (uint i = 0; i < triangles.size(); ++i) {
     currentColor = triangles[i].color;
@@ -310,12 +317,49 @@ void drawPolygon(vector<Vertex> &vertices, vector<VertexAttributes> attributes) 
   for (int i = 0; i < vertices.size(); ++i) {
     vertexShader(vertices[i].position, attributes[i]);
   }
+  if (DEBUG) {
+    cout << "Vertices WF: ";
+    for (auto vertexWF : vertices)
+      cout << vertexWF.position << " ";
+    cout << endl;
+  }
+
   vector<vec3> verticesCF = cameraTransform(vertices);
+
+  if (DEBUG) {
+    cout << "Vertices CF: ";
+    for (auto vertexCF : verticesCF)
+      cout << vertexCF << " ";
+    cout << endl;
+  }
+
   vector<vec4> verticesClipSpace = clipSpaceTransform(verticesCF);
-  //clip(verticesClipSpace, attributes);
+
+  clip(verticesClipSpace, attributes);
+
   vector<vec4> verticesNDC = perspectiveDivide(verticesClipSpace);
+
+  if (DEBUG) {
+    cout << "Vertices NDC: ";
+    for (auto vertexNDC : verticesNDC)
+      cout << vertexNDC << " ";
+    cout << endl;
+  }
+
   vector<Pixel> vertexPixels = viewportTransform(verticesNDC, attributes);
-  //viewportTransform
+
+  if (vertexPixels.size() < 2) {
+    return;
+  }
+
+  if (DEBUG) {
+    cout << "Vertices Pixels: ";
+    for (auto vertexPixel : vertexPixels)
+      cout << vertexPixel << " ";
+    cout << endl;
+    cout << endl;
+  }
+
   vector<Pixel> leftPixels;
   vector<Pixel> rightPixels;
 
@@ -355,37 +399,95 @@ vector<Pixel> viewportTransform(vector<vec4> verticesNDC, vector<VertexAttribute
 
 
 void clip(vector<vec4> &verticesClipSpace, vector<VertexAttributes> &attributes) {
+  if (DEBUG) {
+    cout << "Vertices ClipSpace: ";
+    for (auto vertexClipSpace : verticesClipSpace)
+      cout << vertexClipSpace << " ";
+    cout << endl;
+  }
+  if (DEBUG) {
+    cout << "Attributes pre clipping: ";
+    for (auto attribute : attributes)
+      cout << attribute << " ";
+    cout << endl;
+  }
   clipPolygonsBehindCamera(verticesClipSpace, attributes);
-  //clipPolygonOnAxis(verticesClipSpace, AXIS_X, attributes);
-  //clipPolygonOnAxis(verticesClipSpace, AXIS_Y);
-  //clipPolygonOnAxis(verticesClipSpace, AXIS_Z);
+  if (DEBUG) { cout << "clip on X axis" << endl; }
+  clipPolygonOnAxis(verticesClipSpace, AXIS_X, attributes);
+  clipPolygonOnAxis(verticesClipSpace, AXIS_Y, attributes);
+  clipPolygonOnAxis(verticesClipSpace, AXIS_Z, attributes);
+  if (DEBUG) {
+    cout << "Vertices ClipSpace (post clipping): ";
+    for (auto vertexClipSpace : verticesClipSpace)
+      cout << vertexClipSpace << " ";
+    cout << endl;
+  }
+  if (DEBUG) {
+    cout << "Attributes post clipping: ";
+    for (auto attribute : attributes)
+      cout << attribute << " ";
+    cout << endl;
+  }
+
+}
+
+VertexAttributes interpolate(VertexAttributes begin, VertexAttributes end, float t) {
+  VertexAttributes interpolated;
+  assert(t >= -1.01 && t <= 1.01);
+  interpolated.zinv = begin.zinv * (1 - t) + end.zinv * t;
+  interpolated.posWF = begin.posWF * (1 - t) + end.posWF * t;
+  return interpolated;
 }
 
 // We now get rid of any polygons behind the camera, or on the camera point itself, which would
 // mean w = 0 and cause a divide by 0 error in the perspective divide.
 void clipPolygonsBehindCamera(vector<vec4> &polygonVertices, vector<VertexAttributes> &attributes) {
   vector<vec4> verticesInFrontOfCamera;
+  vector<VertexAttributes> attributesForVerticesInFrontOfCamera;
 
-  vec4 & previousVertex = polygonVertices.back();
-  // Normal for clipping against w = \epsilon is (0, 0, 0, 1), i.e. just the w component
-  float previousDot = previousVertex.w;
-  for (auto & vertex: polygonVertices) {
-    float currentDot = vertex.w;
-    if (previousDot > 0 && currentDot < 0 ||
-        previousDot < 0 && currentDot > 0) {
-      float tForIntersection = previousVertex.w / (previousVertex.w - vertex.w);
+  float w_clipping_plane = 0.0001;
+  size_t previousVertexIndex = polygonVertices.size() - 1;
+  vec4 previousVertex = polygonVertices[previousVertexIndex];
+  // We only care about the sign of the dot product, not the value, the sign tells us whether the
+  // vertex is 'in' or 'out'.
+  // 1 indicates 'in', and -1 indicates 'out'
+  //
+  float previousDot = (previousVertex.w >= w_clipping_plane) ? 1 : -1;
+  for (size_t i = 0; i < polygonVertices.size(); i++) {
+    vec4 & vertex = polygonVertices[i];
+    float currentDot = (vertex.w >= w_clipping_plane) ? 1 : -1;
+    // previousDot * currentDot indicates that the line crosses the clipping plane,
+    // previousDot (negative) * currentDot (positive) => out -> in
+    // previousDot (positive) * currentDot (negative) => in -> out
+    if (previousDot * currentDot < 0) {
+      float tForIntersection = (w_clipping_plane - previousVertex.w) / (previousVertex.w - vertex.w);
+      if (DEBUG) {
+        cout << "clippity clip" << endl;
+        cout << "t = " << tForIntersection << endl;
+      }
       vec4 intersection = previousVertex + tForIntersection * (vertex - previousVertex);
+      VertexAttributes intersectionAttributes = interpolate(
+              attributes[previousVertexIndex],
+              attributes[i],
+              tForIntersection);
       verticesInFrontOfCamera.push_back(intersection);
+      attributesForVerticesInFrontOfCamera.push_back(intersectionAttributes);
     }
 
     if (currentDot > 0) {
-      verticesInFrontOfCamera.push_back(vertex);
+      if (DEBUG) {
+        cout << "vertex fully in frustum" << endl;
+      }
+      verticesInFrontOfCamera.push_back(polygonVertices[i]);
+      attributesForVerticesInFrontOfCamera.push_back(attributes[i]);
     }
     previousVertex = vertex;
+    previousDot = currentDot;
+    previousVertexIndex = i;
   }
   polygonVertices = verticesInFrontOfCamera;
+  attributes = attributesForVerticesInFrontOfCamera;
 }
-
 
 // This clips according to Ken Joy's convex polygon clipping algorithm
 // We iterate over the vertices of the polygon deciding whether each vertex is
@@ -400,36 +502,91 @@ void clipPolygonOnAxis(vector<vec4> &polygonVertices, unsigned int axis,
   // axes.
 
   vector<vec4> verticesInsidePlane;
-  vec4 &previousVertex = polygonVertices.back();
+  vector<VertexAttributes> attributesForVerticesInsidePlane;
+  vec4 previousVertex = polygonVertices.back();
+  size_t previousVertexIndex = polygonVertices.size() - 1;
   // e.g. for X axis, our normal is (1, 0, 0, 1) for w = -x or (-1, 0, 0, 1) for
   // w = x.
 
   // First we clip against w = x
-  float previousDot = previousVertex[axis] + previousVertex.w;
-  float currentDot;
-  for (auto & vertex : polygonVertices) {
-    currentDot = vertex[axis] + vertex.w;
-    if (previousDot < 0 && currentDot > 0 ||
-        previousDot > 0 && currentDot < 0) {
-      // Line segment goes from outside to inside the plane, so we need to
-      // calculate the intersection
-      // our line from Q_1 to Q_2 can be written in parameteric form:
-      // Q(t) = Q_1 + t (Q_2 - Q_1)
-      // We need to find the t such that Q(t) lies on the plane, refer to the
-      // notes above on how this works.
-
+  // 1 indicates in
+  // -1 indicates out
+  float previousDot = previousVertex[axis] <= previousVertex.w ? 1 : -1;
+  for (size_t i = 0; i < polygonVertices.size(); i++) {
+    vec4 const & vertex = polygonVertices[i];
+    float currentDot = vertex[axis] <= vertex.w ? 1 : -1;
+    if (previousDot * currentDot < 0) {
       float tForIntersection = (previousVertex.w - previousVertex[axis]) /
               ((previousVertex.w - previousVertex[axis]) - (vertex.w - vertex[axis]));
+      if (DEBUG) {
+        cout << "clippity clip ";
+        if (currentDot > 0 && previousDot < 0) {
+          cout << "(in - out)" << endl;
+        }
+        if (currentDot < 0 && previousDot > 0) {
+          cout << "(out - in)" << endl;
+        }
+        cout << "t = " << tForIntersection << endl;
+      }
       vec4 intersection = previousVertex + tForIntersection * (vertex - previousVertex);
+      VertexAttributes intersectionAttributes = interpolate(
+              attributes[previousVertexIndex],
+              attributes[i],
+              tForIntersection);
       verticesInsidePlane.push_back(intersection);
+      attributesForVerticesInsidePlane.push_back(intersectionAttributes);
     }
-
     if (currentDot > 0) {
       verticesInsidePlane.push_back(vertex);
+      attributesForVerticesInsidePlane.push_back(attributes[i]);
     }
-
     previousVertex = vertex;
+    previousVertexIndex = i;
+    previousDot = currentDot;
   }
+
+  polygonVertices = verticesInsidePlane;
+  attributes = attributesForVerticesInsidePlane;
+
+  // Now we clip against w = -x
+  // 1 indicates in
+  // -1 indicates out
+  previousDot = -previousVertex[axis] <= previousVertex.w ? 1 : -1;
+  for (size_t i = 0; i < polygonVertices.size(); i++) {
+    vec4 const & vertex = polygonVertices[i];
+    float currentDot = -vertex[axis] <= vertex.w ? 1 : -1;
+    if (previousDot * currentDot < 0) {
+      float tForIntersection = (previousVertex.w + previousVertex[axis]) /
+                               ((previousVertex.w + previousVertex[axis]) - (vertex.w + vertex[axis]));
+      if (DEBUG) {
+        cout << "clippity clip ";
+        if (currentDot > 0 && previousDot < 0) {
+          cout << "(in - out)" << endl;
+        }
+        if (currentDot < 0 && previousDot > 0) {
+          cout << "(out - in)" << endl;
+        }
+        cout << "t = " << tForIntersection << endl;
+      }
+      vec4 intersection = previousVertex + tForIntersection * (vertex - previousVertex);
+      VertexAttributes intersectionAttributes = interpolate(
+              attributes[previousVertexIndex],
+              attributes[i],
+              tForIntersection);
+      verticesInsidePlane.push_back(intersection);
+      attributesForVerticesInsidePlane.push_back(intersectionAttributes);
+    }
+    if (currentDot > 0) {
+      verticesInsidePlane.push_back(vertex);
+      attributesForVerticesInsidePlane.push_back(attributes[i]);
+    }
+    previousVertex = vertex;
+    previousVertexIndex = i;
+    previousDot = currentDot;
+  }
+
+  polygonVertices = verticesInsidePlane;
+  attributes = attributesForVerticesInsidePlane;
 }
 
 vec3 worldToCamera(const vec3 &vertexWF) {
@@ -469,7 +626,7 @@ void pixelShader(const Pixel &pixel) {
   if (pixel.zinv > depthBuffer[y][x]) {
     // Vector from surface point to the light source
 
-    vec3 surface_to_light = vec3(worldToNDC(LIGHT_POSITION))  - pixel.pos3d;
+    vec3 surface_to_light = LIGHT_POSITION  - pixel.pos3d;
 
     // Compute illumination of vertex
     #pragma clang diagnostic push
@@ -479,7 +636,7 @@ void pixelShader(const Pixel &pixel) {
     float scale = (4 * M_PI * surface_to_light_distance * surface_to_light_distance);
     vec3 direct_illumination =
             (LIGHT_POWER *
-             max(dot(normalize(surface_to_light), normalize(currentNormal)), 0.0f)) /
+             max(dot(-normalize(surface_to_light), normalize(currentNormal)), 0.0f)) /
             scale;
 
     vec3 illumination = currentReflectance *
@@ -502,7 +659,7 @@ void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
   }
   uint numRowsOccupied = (uint)(max_y - min_y + 1);
   assert(numRowsOccupied >= 0);
-  assert(numRowsOccupied <= SCREEN_WIDTH);
+  //assert(numRowsOccupied <= SCREEN_WIDTH);
 
   leftPixels.resize(numRowsOccupied);
   rightPixels.resize(numRowsOccupied);
@@ -512,10 +669,13 @@ void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
     rightPixels[i].x = -numeric_limits<int>::max();
   }
 
-  vector<vector<Pixel>> edges(3);
-  constructPixelLine(vertexPixels[0], vertexPixels[1], edges[0]);
-  constructPixelLine(vertexPixels[1], vertexPixels[2], edges[1]);
-  constructPixelLine(vertexPixels[0], vertexPixels[2], edges[2]);
+  vector<vector<Pixel>> edges(vertexPixels.size() + 1);
+  for (size_t i = 1; i < vertexPixels.size(); i++) {
+    constructPixelLine(vertexPixels[i - 1], vertexPixels[i], edges[i - 1]);
+  }
+  constructPixelLine(vertexPixels[vertexPixels.size() - 1],
+                     vertexPixels[0],
+                     edges[vertexPixels.size()]);
 
   // Find leftmost and rightmost pixels of the polygon for each row
 
@@ -547,7 +707,7 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
 void vertexShader(const vec3 &vertexWF, VertexAttributes & attributes) {
   vec3 vertexCF = worldToCamera(vertexWF);
   attributes.posWF = vertexWF;
-  attributes.zinv = 1 / vertexCF.z;
+  attributes.zinv = - 1 / vertexCF.z;
 }
 
 void calculateScreenPixelCentres() {
@@ -574,17 +734,16 @@ float computeRenderTime() {
 
 void updateCameraParameters(const Uint8 *keystate) {
   updateCameraPosition(keystate);
-  if (MOUSE_CONTROLS_ON) {
-    updateCameraRotation(keystate);
-  }
+  updateCameraRotation(keystate);
 }
 
 void updateCameraRotation(const Uint8 *keystate) {
-  int x;
-  int y;
-  SDL_GetRelativeMouseState(&x, &y);
-  PITCH += -y / (SCREEN_HEIGHT * 1.0);
-  YAW += x / (SCREEN_WIDTH * 1.0);
+  if (keystate[SDLK_LEFT]) {
+    YAW += ROTATION_STEP_SIZE;
+  }
+  if (keystate[SDLK_RIGHT]) {
+    YAW -= ROTATION_STEP_SIZE;
+  }
 }
 
 void updateCameraPosition(const Uint8 *keystate) {
@@ -614,7 +773,7 @@ void updateCameraPosition(const Uint8 *keystate) {
   }
 }
 
-void updateCameraRotation() {
+void initialiseCameraRotationMatrix() {
   CAMERA_ROTATION_X[0] = vec3(1, 0, 0);
   CAMERA_ROTATION_X[1] = vec3(0, cos(PITCH), sin(PITCH));
   CAMERA_ROTATION_X[2] = vec3(0, -sin(PITCH), cos(PITCH));

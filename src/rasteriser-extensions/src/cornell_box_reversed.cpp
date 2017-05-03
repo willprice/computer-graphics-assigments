@@ -1,6 +1,7 @@
-#include "models/cornell_box.hpp"
+#include "cornell_box_reversed.hpp"
 
-namespace cg {
+using cg::Triangle;
+
 void LoadTestModel(std::vector<Triangle> &triangles) {
   using glm::vec3;
 
@@ -136,7 +137,10 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
     triangles[i].v1.position.y *= -1;
     triangles[i].v2.position.y *= -1;
 
+    triangles[i].v0.position.z *= -1;
+    triangles[i].v1.position.z *= -1;
+    triangles[i].v2.position.z *= -1;
+
     triangles[i].ComputeNormal();
   }
 }
-};

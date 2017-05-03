@@ -68,7 +68,7 @@ const size_t PIXEL_RAY_COUNT = 2;
 
 void Update();
 void Draw();
-void updateCameraRotation();
+void initialiseCameraRotationMatrix();
 void updateCameraParameters(const Uint8 *keystate);
 void updateCameraPosition(const Uint8 *keystate);
 void updateCameraRotation(const Uint8 *keystate);
@@ -120,7 +120,7 @@ void Draw() {
     SDL_LockSurface(screen);
   }
 
-  updateCameraRotation();
+  initialiseCameraRotationMatrix();
   RENDER_COUNT++;
 
   float pixel_width = screen_pixel_centres_y[1] - screen_pixel_centres_y[0];
@@ -330,7 +330,7 @@ void updateCameraPosition(const Uint8 *keystate) {
   }
 }
 
-void updateCameraRotation() {
+void initialiseCameraRotationMatrix() {
   CAMERA_ROTATION_X[0] = vec3(1, 0, 0);
   CAMERA_ROTATION_X[1] = vec3(0, cos(PITCH), sin(PITCH));
   CAMERA_ROTATION_X[2] = vec3(0, -sin(PITCH), cos(PITCH));

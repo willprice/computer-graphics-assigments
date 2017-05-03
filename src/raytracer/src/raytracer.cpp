@@ -60,7 +60,7 @@ vec3 INDIRECT_LIGHT = 0.5f * vec3(1, 1, 1);
 
 void Update();
 void Draw();
-void updateCameraRotation();
+void initialiseCameraRotationMatrix();
 void updateCameraParameters(const Uint8 *keystate);
 void updateCameraPosition(const Uint8 *keystate);
 void updateCameraRotation(const Uint8 *keystate);
@@ -108,7 +108,7 @@ void Draw() {
   if (SDL_MUSTLOCK(screen))
     SDL_UnlockSurface(screen);
 
-  updateCameraRotation();
+  initialiseCameraRotationMatrix();
 
 #pragma omp parallel
   {
@@ -254,7 +254,7 @@ void updateCameraPosition(const Uint8 *keystate) {
   }
 }
 
-void updateCameraRotation() {
+void initialiseCameraRotationMatrix() {
   CAMERA_ROTATION_X[0] = vec3(1, 0, 0);
   CAMERA_ROTATION_X[1] = vec3(0, cos(PITCH), sin(PITCH));
   CAMERA_ROTATION_X[2] = vec3(0, -sin(PITCH), cos(PITCH));
