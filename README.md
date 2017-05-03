@@ -41,6 +41,9 @@ Controls:
 ### Rasteriser
 
 Running `./bin/rasteriser` after `make` will launch the rasteriser.
+If you are running the extended rasteriser with texture mapping, make sure the
+bitmap `space.bmp` exists in your current directory, this is included in the
+top level of the repository
 
 Controls:
 * `w`: Camera forward
