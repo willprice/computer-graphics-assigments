@@ -4,6 +4,7 @@ using cg::Triangle;
 
 void LoadTestModel(std::vector<Triangle> &triangles) {
   using glm::vec3;
+  using glm::vec2;
 
   // Defines colors:
   vec3 red(0.75f, 0.15f, 0.15f);
@@ -51,8 +52,12 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
   triangles.push_back(Triangle(F, H, G, white));
 
   // Back wall
-  triangles.push_back(Triangle(G, D, C, white));
-  triangles.push_back(Triangle(G, H, D, white));
+  vec2 TL(0, 0);
+  vec2 TR(1884, 0);
+  vec2 BL(0, 1064);
+  vec2 BR(1884, 1064);
+  triangles.push_back(Triangle(G, D, C, white,false,true,TR,BL,BR));
+  triangles.push_back(Triangle(G, H, D, white,false,true,TR,TL,BL));
 
   // ---------------------------------------------------------------------------
   // Short block

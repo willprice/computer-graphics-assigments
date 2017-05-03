@@ -8,6 +8,10 @@ Both the raytracer and rasteriser render a
 
 ## Build
 
+On university computers, simply run `./university-build.sh` and
+everything will be compiled in `./build`, you can find the executables
+in `./build/bin`
+
 ```
 $ mkdir build
 $ cd build

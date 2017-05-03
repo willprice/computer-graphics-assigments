@@ -36,7 +36,6 @@ using glm::mat4;
 /* GLOBAL VARIABLES */
 
 #define DEBUG false
-//#define DEBUG true
 
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
@@ -86,6 +85,7 @@ struct Pixel {
   int y;
   float zinv;
   vec3 pos3d;
+  vec2 texturePosition;
 };
 
 std::ostream& operator<<(std::ostream& os, const Pixel & pixel) {
@@ -94,9 +94,12 @@ std::ostream& operator<<(std::ostream& os, const Pixel & pixel) {
 }
 
 SDL_Surface *screen;
+SDL_Surface *textureSurface;
+
 int TIME;
 vector<Triangle> triangles;
 vec3 currentColor;
+Triangle *currentTriangle;
 
 // Adding a tiny amount of camera rotation fixes little black spots that appear
 // at the intersection of triangles
@@ -144,7 +147,7 @@ void updateCameraRotation(const Uint8 *keystate);
 void updateLightPosition(const Uint8 *keystate);
 float computeRenderTime();
 void calculateScreenPixelCentres();
-void vertexShader(const vec3 &vertexWF, VertexAttributes & pixel);
+void vertexShader(const vec3 &vertexWF, VertexAttributes & pixel, int vertexNum);
 void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line);
 void interpolate(Pixel a, Pixel b, vector<Pixel> &result);
 void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
@@ -180,6 +183,13 @@ int main(int argc, char *argv[]) {
   TIME = SDL_GetTicks(); // Set start value for timer.
   signal(SIGINT, SIG_DFL);
 
+  const char file[] = "space.bmp";
+  textureSurface = SDL_LoadBMP(file);
+  if (textureSurface == NULL) {
+    cout << "Failed to load texture" << endl;
+  } else {
+    cout << textureSurface->h << endl;
+  }
 
   LoadTestModel(triangles);
   calculateScreenPixelCentres();
@@ -255,6 +265,7 @@ void Draw() {
   for (uint i = 0; i < triangles.size(); ++i) {
     currentColor = triangles[i].color;
     currentNormal = triangles[i].normal;
+    currentTriangle = &triangles[i];
     // NOTE: We assume that the reflectance is constant over the triangle.
     currentReflectance = 1;
 
@@ -263,9 +274,9 @@ void Draw() {
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
     vector<VertexAttributes> attributes = {
-            {vertices[0].position},
-            {vertices[1].position},
-            {vertices[2].position},
+            VertexAttributes(vertices[0].position, vertices[0].texturePosition, 0),
+            VertexAttributes(vertices[1].position, vertices[1].texturePosition, 1),
+            VertexAttributes(vertices[2].position, vertices[2].texturePosition, 2),
     };
     drawPolygon(vertices, attributes);
   }
@@ -285,12 +296,14 @@ void interpolate(Pixel start, Pixel end, vector<Pixel> &result) {
   // Interpolating pos3d linearly with the position divided by the z value.
   vec3 pos3d_step_size =
       (end.pos3d * end.zinv - start.pos3d * start.zinv) / float(max(N - 1, 1));
+  vec2 texture_step_size = (vec2(end.texturePosition) - vec2(start.texturePosition)) / float(max(N - 1, 1));
   for (size_t i = 0; i < result.size(); i++) {
     result[i].x = glm::round(start.x + x_step_size * i);
     result[i].y = glm::round(start.y + y_step_size * i);
     result[i].zinv = start.zinv + zinv_step_size * i;
     result[i].pos3d = (start.pos3d * start.zinv + pos3d_step_size * float(i)) /
                       result[i].zinv;
+    result[i].texturePosition = vec2(start.texturePosition) + texture_step_size * i;
   }
 }
 
@@ -315,7 +328,7 @@ vector<vec4> perspectiveDivide(vector<vec4> & verticesClipSpace) {
 
 void drawPolygon(vector<Vertex> &vertices, vector<VertexAttributes> attributes) {
   for (int i = 0; i < vertices.size(); ++i) {
-    vertexShader(vertices[i].position, attributes[i]);
+    vertexShader(vertices[i].position, attributes[i], attributes[i].vertexNum);
   }
   if (DEBUG) {
     cout << "Vertices WF: ";
@@ -392,6 +405,7 @@ vector<Pixel> viewportTransform(vector<vec4> verticesNDC, vector<VertexAttribute
     vec4 pixelVertex = VIEWPORT_TRANSFORM * vertex;
     pixels[i].x = int(SCREEN_WIDTH * pixelVertex.x);
     pixels[i].y = int(SCREEN_HEIGHT * pixelVertex.y);
+    pixels[i].texturePosition = attributes[i].texturePosition;
   }
 
   return pixels;
@@ -607,6 +621,8 @@ void drawRows(const vector<Pixel> &leftPixels,
   for (uint i = 0; i < leftPixels.size(); i++) {
     Pixel leftPixel = leftPixels[i];
     Pixel rightPixel = rightPixels[i];
+    //leftPixel.texturePosition =
+    //rightPixel.texturePosition =
     int n = rightPixel.x - leftPixel.x + 1;
     vector<Pixel> line(n);
     interpolate(leftPixel, rightPixel, line);
@@ -642,6 +658,9 @@ void pixelShader(const Pixel &pixel) {
     vec3 illumination = currentReflectance *
                         (direct_illumination + INDIRECT_LIGHT_POWER_PER_AREA);
     depthBuffer[y][x] = pixel.zinv;
+    if (currentTriangle->texturesEnabled) {
+      currentColor = GetPixelSDL(textureSurface, (int)(pixel.texturePosition.x), (int)(pixel.texturePosition.y));
+    }
     PutPixelSDL(screen, x, y, illumination * currentColor);
   }
 }
@@ -667,6 +686,8 @@ void computeRows(const vector<Pixel> &vertexPixels, vector<Pixel> &leftPixels,
   for (uint i = 0; i < numRowsOccupied; ++i) {
     leftPixels[i].x = +numeric_limits<int>::max();
     rightPixels[i].x = -numeric_limits<int>::max();
+    //leftPixels[i].disp_y = min_y;
+    //rightPixels[i].disp_y = min_y;
   }
 
   vector<vector<Pixel>> edges(vertexPixels.size() + 1);
@@ -704,10 +725,19 @@ void constructPixelLine(Pixel start, Pixel end, vector<Pixel> &line) {
   interpolate(start, end, line);
 }
 
-void vertexShader(const vec3 &vertexWF, VertexAttributes & attributes) {
+void vertexShader(const vec3 &vertexWF, VertexAttributes & attributes, int vertexNum) {
   vec3 vertexCF = worldToCamera(vertexWF);
   attributes.posWF = vertexWF;
   attributes.zinv = - 1 / vertexCF.z;
+  if (vertexNum == 0) {
+    attributes.texturePosition = currentTriangle->v0.texturePosition;
+  } else if (vertexNum == 1) {
+    attributes.texturePosition = currentTriangle->v1.texturePosition;
+  } else if (vertexNum == 2) {
+    attributes.texturePosition = currentTriangle->v2.texturePosition;
+  } else {
+    cout << "Error" << endl;
+  }
 }
 
 void calculateScreenPixelCentres() {

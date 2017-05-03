@@ -3,6 +3,7 @@
 namespace cg {
 void LoadTestModel(std::vector<Triangle> &triangles) {
   using glm::vec3;
+  using glm::vec2;
 
   // Defines colors:
   vec3 red(0.75f, 0.15f, 0.15f);
@@ -33,6 +34,11 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
   vec3 G(L, L, L);
   vec3 H(0, L, L);
 
+  vec2 TL(0, 0);
+  vec2 TR(1884, 0);
+  vec2 BL(0, 1064);
+  vec2 BR(1884, 1064);
+
   // Floor:
   triangles.push_back(Triangle(C, B, A, white));
   triangles.push_back(Triangle(C, D, B, white));
@@ -50,8 +56,8 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
   triangles.push_back(Triangle(F, H, G, white));
 
   // Back wall
-  triangles.push_back(Triangle(G, D, C, white));
-  triangles.push_back(Triangle(G, H, D, white));
+  triangles.push_back(Triangle(G, D, C, white,false,true,TR,BL,BR));
+  triangles.push_back(Triangle(G, H, D, white,false,true,TR,TL,BL));
 
   // ---------------------------------------------------------------------------
   // Short block
@@ -100,12 +106,12 @@ void LoadTestModel(std::vector<Triangle> &triangles) {
   H = vec3(314, 330, 456);
 
   // Front
-  triangles.push_back(Triangle(E, B, A, white));
-  triangles.push_back(Triangle(E, F, B, white));
+  triangles.push_back(Triangle(E, B, A, white,true));
+  triangles.push_back(Triangle(E, F, B, white,true));
 
   // Front
-  triangles.push_back(Triangle(F, D, B, white));
-  triangles.push_back(Triangle(F, H, D, white));
+  triangles.push_back(Triangle(F, D, B, white,true));
+  triangles.push_back(Triangle(F, H, D, white,true));
 
   // BACK
   triangles.push_back(Triangle(H, C, D, white));
